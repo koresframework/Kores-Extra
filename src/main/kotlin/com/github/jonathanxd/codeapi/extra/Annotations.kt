@@ -1,4 +1,4 @@
-/**
+/*
  *      CodeAPI-Extra - CodeAPI Extras
  *
  *         The MIT License (MIT)
@@ -41,12 +41,12 @@ import javax.lang.model.element.*
 import javax.lang.model.type.*
 
 /**
- * Annotation universalizing.
+ * Annotation systems unification.
  *
- * This class universalizes Java Reflection Annotations, Java model annotations and CodeAPI Annotations
+ * This function unifies Java Reflection Annotations, Java model annotations and CodeAPI Annotations
  * via proxies.
  *
- * You need to have a interface that defines universalized annotation properties, example:
+ * You need to have a interface that defines unification of annotation properties, example:
  *
  * Given:
  * ```java
@@ -61,7 +61,7 @@ import javax.lang.model.type.*
  * You need to write a interface like this:
  *
  * ```java
- * public interface EntryUniversalized {
+ * public interface EntryUnification {
  *
  *     CodeType type();
  *     String name();
@@ -69,9 +69,9 @@ import javax.lang.model.type.*
  * }
  * ```
  *
- * You only need to use `universal` version of annotation property type in the universalized interface.
+ * You only need to use `unification` version of annotation property type in the unification interface.
  *
- * Each annotation property type has it own `universal` version:
+ * Each annotation property type has it own `unified` version:
  *
  * - [Class] -> [CodeType]
  * - [Enum] -> [EnumValue]
@@ -86,7 +86,7 @@ import javax.lang.model.type.*
  * }
  *
  *
- * public interface EntryUniversalized {
+ * public interface EntryUnification {
  *
  *     CodeType[] types();
  *     String name();
@@ -94,11 +94,12 @@ import javax.lang.model.type.*
  * }
  * ```
  *
- * Obs: you can also add a `annotationType` method in the universalizing interface.
+ * Obs: you can also add a `annotationType` method in the unification interface,
+ * this method returns the type of annotation (like [java.lang.annotation.Annotation.annotationType]).
  *
  *
  * ```java
- * public interface EntryUniversalized {
+ * public interface EntryUnification {
  *
  *     CodeType[] types();
  *     String name();
@@ -109,23 +110,58 @@ import javax.lang.model.type.*
  * }
  * ```
  *
+ * You can also provide additional unification interfaces. Example:
+ *
+ * ```java
+ *
+ * public @interface Id {
+ *   String value();
+ * }
+ *
+ * public @interface Entry {
+ *   Id id();
+ *   Class<?> type();
+ * }
+ *
+ * public interface IdUnification {
+ *
+ *   String value();
+ *
+ *   // Annotation type
+ *   CodeType annotationType();
+ *
+ * }
+ *
+ * public interface EntryUnification {
+ *
+ *   CodeType type();
+ *   IdUnification id();
+ *
+ *   // Annotation type
+ *   CodeType annotationType();
+ *
+ * }
+ * ```
+ *
+ *
  */
 @Suppress("UNCHECKED_CAST")
-fun <T : Any> getUniversalInstance(annotation: Any, universalInterface: Class<T>): T {
+@JvmOverloads
+fun <T : Any> getUnificationInstance(annotation: Any, unificationInterface: Class<T>, additionalUnificationGetter: (CodeType) -> Class<*>? = { null }): T {
 
-    val codeAnnotation = when (annotation) {
-        is kotlin.Annotation -> annotation.toCodeAPI()
-        is AnnotationMirror -> annotation.toCodeAPI()
-        is Annotation -> annotation
+    val unifiedAnnotation = when (annotation) {
+        is kotlin.Annotation -> annotation.toUnified(additionalUnificationGetter)
+        is AnnotationMirror -> annotation.toUnified(additionalUnificationGetter)
+        is Annotation -> UnifiedAnnotationData(annotation.type, annotation.values)
         else -> throw IllegalArgumentException("Unsupported annotation type: '${annotation::class.java.canonicalName}' (of instance '$annotation')")
     }
 
-    return Proxy.newProxyInstance(universalInterface.classLoader, arrayOf(universalInterface), { proxy, method, args ->
+    return Proxy.newProxyInstance(unificationInterface.classLoader, arrayOf(unificationInterface), { proxy, method, args ->
         if (method.name == "annotationType")
-            return@newProxyInstance codeAnnotation.type
+            return@newProxyInstance unifiedAnnotation.type
 
-        if (codeAnnotation.values.containsKey(method.name))
-            return@newProxyInstance codeAnnotation.values[method.name]
+        if (unifiedAnnotation.values.containsKey(method.name))
+            return@newProxyInstance unifiedAnnotation.values[method.name]
 
         return@newProxyInstance method.invoke(annotation, *args)
 
@@ -133,21 +169,26 @@ fun <T : Any> getUniversalInstance(annotation: Any, universalInterface: Class<T>
 }
 
 
-private fun AnnotationMirror.toCodeAPI(): Annotation {
+private fun AnnotationMirror.toUnified(additionalUnificationGetter: (CodeType) -> Class<*>?): UnifiedAnnotationData {
     val type = this.annotationType.toCodeType(false)
 
     val properties = this.elementValues.mapValues { (executableElement, annotationValue) ->
-        annotationValue.toCodeAPIAnnotationValue(executableElement, executableElement.returnType)
+        annotationValue.toCodeAPIAnnotationValue(executableElement, executableElement.returnType, additionalUnificationGetter)
     }.mapKeys { it.key.simpleName.toString() }
 
-    return AnnotationImpl(type = type, values = properties, visible = true)
+    return UnifiedAnnotationData(type = type, values = properties)
 }
 
-private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: ExecutableElement, type: TypeMirror): Any {
+private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: ExecutableElement, type: TypeMirror, additionalUnificationGetter: (CodeType) -> Class<*>?): Any {
     val value = this.value ?: executableElement.defaultValue
 
-    if (value is AnnotationMirror)
-        return value.toCodeAPI()
+    if (value is AnnotationMirror) {
+        additionalUnificationGetter(value.annotationType.toCodeType(false))?.let {
+            return getUnificationInstance(this, it, additionalUnificationGetter)
+        }
+
+        return value.toUnified(additionalUnificationGetter)
+    }
 
     if (value is TypeMirror)
         return value.toCodeType(false)
@@ -163,12 +204,12 @@ private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: Executab
 
         type as ArrayType
 
-        val universal = type.componentType.universalType
+        val unification = type.componentType.unificationType
 
-        val newArray = java.lang.reflect.Array.newInstance(universal, value.size)
+        val newArray = java.lang.reflect.Array.newInstance(unification, value.size)
 
         value.forEachIndexed { index, arg ->
-            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(executableElement, type.componentType))
+            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(executableElement, type.componentType, additionalUnificationGetter))
         }
 
         return newArray
@@ -177,7 +218,7 @@ private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: Executab
     return value
 }
 
-private fun kotlin.Annotation.toCodeAPI(): Annotation {
+private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (CodeType) -> Class<*>?): UnifiedAnnotationData {
     val type = this.annotationClass
     val jClass = this::class.java
 
@@ -186,17 +227,22 @@ private fun kotlin.Annotation.toCodeAPI(): Annotation {
     jClass.methods.forEach {
         if (it.declaringClass != Any::class.java) {
             if (Modifier.isPublic(it.modifiers) && it.parameterCount == 0) {
-                properties.put(it.name, it.invoke(this).toCodeAPIAnnotationValue())
+                properties.put(it.name, it.invoke(this).toCodeAPIAnnotationValue(additionalUnificationGetter))
             }
         }
     }
 
-    return AnnotationImpl(type = type.codeType, values = properties, visible = true)
+    return UnifiedAnnotationData(type = type.codeType, values = properties)
 }
 
-private fun Any.toCodeAPIAnnotationValue(): Any {
-    if (this is kotlin.Annotation)
-        return this.toCodeAPI()
+private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (CodeType) -> Class<*>?): Any {
+    if (this is kotlin.Annotation) {
+        additionalUnificationGetter(this.annotationClass.codeType)?.let {
+            return getUnificationInstance(this, it, additionalUnificationGetter)
+        }
+
+        return this.toUnified(additionalUnificationGetter)
+    }
 
     if (this is Class<*>)
         return this.codeType
@@ -211,10 +257,10 @@ private fun Any.toCodeAPIAnnotationValue(): Any {
         val array = this::class.java
         val componentType = array.componentType
 
-        val newArray = java.lang.reflect.Array.newInstance(componentType.universalType, oldArray.size)
+        val newArray = java.lang.reflect.Array.newInstance(componentType.unificationType, oldArray.size)
 
         oldArray.forEachIndexed { index, arg ->
-            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue())
+            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(additionalUnificationGetter))
         }
 
         return newArray
@@ -223,22 +269,22 @@ private fun Any.toCodeAPIAnnotationValue(): Any {
     return this
 }
 
-private val Class<*>.universalType: Class<*>
+private val Class<*>.unificationType: Class<*>
     get() = when (this) {
         kotlin.Annotation::class.java -> Annotation::class.java
         Class::class.java -> CodeType::class.java
-        else -> if(this.isEnum) EnumValue::class.java else this
+        else -> if (this.isEnum) EnumValue::class.java else this
     }
 
-private val TypeMirror.universalType: Class<*>
+private val TypeMirror.unificationType: Class<*>
     get() = when (this) {
         is DeclaredType -> when (this.asElement().kind) {
             ElementKind.ENUM -> EnumValue::class.java
             ElementKind.ANNOTATION_TYPE -> Annotation::class.java
             ElementKind.CLASS -> if (this.toString().startsWith("java.lang.Class")) CodeType::class.java
             else if (this.toString() == "java.lang.String") String::class.java
-            else throw IllegalArgumentException("Cannot get universal type of type mirror '$this'")
-            else -> throw IllegalArgumentException("Cannot get universal type of type mirror '$this'")
+            else throw IllegalArgumentException("Cannot get unification type of type mirror '$this'")
+            else -> throw IllegalArgumentException("Cannot get unification type of type mirror '$this'")
         }
         is PrimitiveType -> when (this.kind) {
             TypeKind.BOOLEAN -> Boolean::class.javaPrimitiveType!!
@@ -249,8 +295,10 @@ private val TypeMirror.universalType: Class<*>
             TypeKind.DOUBLE -> Double::class.javaPrimitiveType!!
             TypeKind.LONG -> Long::class.javaPrimitiveType!!
             TypeKind.VOID -> Void::class.javaPrimitiveType!!
-            else -> throw IllegalArgumentException("Cannot get universal type of type mirror '$this'")
+            else -> throw IllegalArgumentException("Cannot get unification type of type mirror '$this'")
         }
-        else -> throw IllegalArgumentException("Cannot get universal type of type mirror '$this'")
+        else -> throw IllegalArgumentException("Cannot get unification type of type mirror '$this'")
     }
 
+
+internal data class UnifiedAnnotationData(val type: CodeType, val values: Map<String, Any>)

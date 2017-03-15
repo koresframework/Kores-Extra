@@ -1,4 +1,4 @@
-/**
+/*
  *      CodeAPI-Extra - CodeAPI Extras
  *
  *         The MIT License (MIT)

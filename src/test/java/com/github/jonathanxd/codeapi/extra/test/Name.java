@@ -32,9 +32,14 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-public class Test {
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.ANNOTATION_TYPE, ElementType.CONSTRUCTOR, ElementType.FIELD,
+        ElementType.LOCAL_VARIABLE, ElementType.METHOD, ElementType.PACKAGE,
+        ElementType.PARAMETER, ElementType.TYPE, ElementType.TYPE_PARAMETER,
+        ElementType.TYPE_USE})
+public @interface Name {
 
-    @Entry(name = @Name("a"), entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {Test.class, CharSequence.class})
-    public static final String a = "0";
+    String value();
 
 }
+

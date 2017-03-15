@@ -1,4 +1,4 @@
-/**
+/*
  *      CodeAPI-Extra - CodeAPI Extras
  *
  *         The MIT License (MIT)
@@ -43,7 +43,7 @@ public @interface Entry {
 
     Type[] entryTypes();
 
-    String name();
+    Name name();
 
     int[] ids();
 

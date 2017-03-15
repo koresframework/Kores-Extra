@@ -25,16 +25,20 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.codeapi.extra.test;
+package com.github.jonathanxd.codeapi.extra
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.github.jonathanxd.codeapi.type.CodeType
 
-public class Test {
+/**
+ * Unified annotation base interface.
+ *
+ * **This interface is a trait**.
+ */
+interface UnifiedAnnotation {
 
-    @Entry(name = @Name("a"), entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {Test.class, CharSequence.class})
-    public static final String a = "0";
+    /**
+     * Gets the annotation type of unified annotation.
+     */
+    fun annotationType(): CodeType
 
 }
