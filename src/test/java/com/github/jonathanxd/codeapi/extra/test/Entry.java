@@ -43,7 +43,7 @@ public @interface Entry {
 
     Type[] entryTypes();
 
-    Name name();
+    Name name() default @Name("a");
 
     int[] ids();
 

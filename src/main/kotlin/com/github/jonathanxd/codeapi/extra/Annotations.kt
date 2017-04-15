@@ -188,9 +188,24 @@ fun getUnifiedAnnotationData(annotation: Any,
 private fun AnnotationMirror.toUnified(additionalUnificationGetter: (CodeType) -> Class<*>?): UnifiedAnnotationData {
     val type = this.annotationType.toCodeType(false)
 
-    val properties = this.elementValues.mapValues { (executableElement, annotationValue) ->
-        annotationValue.toCodeAPIAnnotationValue(executableElement, executableElement.returnType, additionalUnificationGetter)
-    }.mapKeys { it.key.simpleName.toString() }
+    val element = this.annotationType.asElement() as TypeElement
+
+    require(element.kind == ElementKind.ANNOTATION_TYPE)
+
+    val properties = mutableMapOf<String, Any>()
+
+    element.enclosedElements.forEach {
+
+        if(it is ExecutableElement) {
+            val name = it.simpleName.toString()
+
+            val annotationValue = this.elementValues[it] ?: it.defaultValue
+
+            properties.put(name, annotationValue.toCodeAPIAnnotationValue(it, it.returnType, additionalUnificationGetter))
+        }
+
+
+    }
 
     return UnifiedAnnotationData(type, properties)
 }
@@ -362,10 +377,14 @@ class ProxyInvocationHandler(val original: Any?,
 
         }
 
-        return original?.let {
-            (if (args != null) method.invoke(it, *args) else method.invoke(it))
-                    ?: throw NullPointerException("Annotation properties should not return null! (at: $method)")
-        } ?: throw NoSuchMethodError("Method not found '$method'!")
+        return try {
+            original?.let {
+                (if (args != null) method.invoke(it, *args) else method.invoke(it))
+                        ?: throw NullPointerException("Annotation properties should not return null! (at: $method)")
+            } ?: throw NoSuchMethodError("Method not found '$method'!")
+        }catch (t: Throwable) {
+            throw ReflectiveOperationException("Method not found '$method' at $original!", t)
+        }
     }
 
 }

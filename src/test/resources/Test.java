@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
 
 public class Test {
 
-    @Entry(name = @Name("a"), entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {Test.class, CharSequence.class})
+    @Entry(entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {Test.class, CharSequence.class})
     public static final String a = "0";
 
 }
