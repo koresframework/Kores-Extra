@@ -29,14 +29,16 @@ package com.github.jonathanxd.codeapi.extra
 
 import com.github.jonathanxd.codeapi.base.Annotation
 import com.github.jonathanxd.codeapi.base.EnumValue
-import com.github.jonathanxd.codeapi.base.impl.AnnotationImpl
 import com.github.jonathanxd.codeapi.base.impl.EnumValueImpl
 import com.github.jonathanxd.codeapi.type.CodeType
 import com.github.jonathanxd.codeapi.util.codeType
 import com.github.jonathanxd.codeapi.util.toCodeType
 import com.github.jonathanxd.iutils.array.ArrayUtils
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
+import java.util.*
 import javax.lang.model.element.*
 import javax.lang.model.type.*
 
@@ -145,28 +147,38 @@ import javax.lang.model.type.*
  *
  *
  */
-@Suppress("UNCHECKED_CAST")
 @JvmOverloads
 fun <T : Any> getUnificationInstance(annotation: Any, unificationInterface: Class<T>, additionalUnificationGetter: (CodeType) -> Class<*>? = { null }): T {
 
-    val unifiedAnnotation = when (annotation) {
-        is kotlin.Annotation -> annotation.toUnified(additionalUnificationGetter)
-        is AnnotationMirror -> annotation.toUnified(additionalUnificationGetter)
-        is Annotation -> UnifiedAnnotationData(annotation.type, annotation.values)
-        else -> throw IllegalArgumentException("Unsupported annotation type: '${annotation::class.java.canonicalName}' (of instance '$annotation')")
-    }
+    val unifiedAnnotation = getUnifiedAnnotationData(annotation, additionalUnificationGetter)
 
-    return Proxy.newProxyInstance(unificationInterface.classLoader, arrayOf(unificationInterface), { proxy, method, args ->
-        if (method.name == "annotationType")
-            return@newProxyInstance unifiedAnnotation.type
-
-        if (unifiedAnnotation.values.containsKey(method.name))
-            return@newProxyInstance unifiedAnnotation.values[method.name]
-
-        return@newProxyInstance method.invoke(annotation, *args)
-
-    }) as T
+    return createProxy(annotation, unificationInterface, unifiedAnnotation)
 }
+
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> createProxy(annotationInstance: Any?, unificationInterface: Class<T>, unifiedAnnotationData: UnifiedAnnotationData): T {
+
+    return Proxy.newProxyInstance(unificationInterface.classLoader, arrayOf(unificationInterface), ProxyInvocationHandler(annotationInstance, unificationInterface, unifiedAnnotationData)) as T
+}
+
+fun getUnifiedAnnotationData(annotation: Any, additionalUnificationGetter: (CodeType) -> Class<*>? = { null }): UnifiedAnnotationData =
+        when (annotation) {
+            is kotlin.Annotation -> annotation.toUnified(additionalUnificationGetter)
+            is AnnotationMirror -> annotation.toUnified(additionalUnificationGetter)
+            is Annotation -> UnifiedAnnotationData(annotation.type, annotation.values)
+            else -> throw IllegalArgumentException("Unsupported annotation type: '${annotation::class.java.canonicalName}' (of instance '$annotation')")
+        }
+
+fun getHandlerOfAnnotation(proxy: Any) =
+        (Proxy.getInvocationHandler(proxy) as? ProxyInvocationHandler
+                ?: throw IllegalArgumentException("Provided 'proxy' class is not a UnifiedAnnotation"))
+
+
+fun getDataOfAnnotation(proxy: Any) =
+        getHandlerOfAnnotation(proxy).unifiedAnnotationData
+
+fun getUnificationInterfaceOfAnnotation(proxy: Any) =
+        getHandlerOfAnnotation(proxy).unificationInterface
 
 
 private fun AnnotationMirror.toUnified(additionalUnificationGetter: (CodeType) -> Class<*>?): UnifiedAnnotationData {
@@ -176,7 +188,7 @@ private fun AnnotationMirror.toUnified(additionalUnificationGetter: (CodeType) -
         annotationValue.toCodeAPIAnnotationValue(executableElement, executableElement.returnType, additionalUnificationGetter)
     }.mapKeys { it.key.simpleName.toString() }
 
-    return UnifiedAnnotationData(type = type, values = properties)
+    return UnifiedAnnotationData(type, properties)
 }
 
 private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: ExecutableElement, type: TypeMirror, additionalUnificationGetter: (CodeType) -> Class<*>?): Any {
@@ -232,7 +244,7 @@ private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (CodeType) 
         }
     }
 
-    return UnifiedAnnotationData(type = type.codeType, values = properties)
+    return UnifiedAnnotationData(type.codeType, properties)
 }
 
 private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (CodeType) -> Class<*>?): Any {
@@ -301,4 +313,25 @@ private val TypeMirror.unificationType: Class<*>
     }
 
 
-internal data class UnifiedAnnotationData(val type: CodeType, val values: Map<String, Any>)
+class UnifiedAnnotationData(val type: CodeType, values_: Map<String, Any>) {
+    val values: Map<String, Any> = Collections.unmodifiableMap(values_)
+}
+
+class ProxyInvocationHandler(val original: Any?, val unificationInterface: Class<*>, val unifiedAnnotationData: UnifiedAnnotationData) : InvocationHandler {
+
+    override fun invoke(proxy: Any?, method: Method, args: Array<out Any>?): Any? {
+        if (method.name == "annotationType")
+            return unifiedAnnotationData.type
+
+        if (proxy is UnifiedAnnotation) {
+            if (method.name == "getUnifiedAnnotationData")
+                return getDataOfAnnotation(proxy)
+        }
+
+        if (unifiedAnnotationData.values.containsKey(method.name))
+            return unifiedAnnotationData.values[method.name]
+
+        return original?.let { if(args != null) method.invoke(it, *args) else method.invoke(it) } ?: throw NoSuchMethodError("Method not found '$method'!")
+    }
+
+}

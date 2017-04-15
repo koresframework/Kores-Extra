@@ -37,6 +37,7 @@ import com.github.jonathanxd.codeapi.base.EnumValue;
 import com.github.jonathanxd.codeapi.base.impl.EnumValueImpl;
 import com.github.jonathanxd.codeapi.extra.AnnotationsKt;
 import com.github.jonathanxd.codeapi.extra.UnifiedAnnotation;
+import com.github.jonathanxd.codeapi.extra.UnifiedAnnotationsUtilKt;
 import com.github.jonathanxd.codeapi.type.CodeType;
 import com.github.jonathanxd.codeapi.type.PlainCodeType;
 import com.github.jonathanxd.iutils.collection.CollectionUtils;
@@ -58,33 +59,50 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
 
+import kotlin.Unit;
+
 public class AnnotationUnificationlTest {
 
     @Entry(name = @Name("a"), entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {String.class, CharSequence.class})
     public static final String a = "0";
 
+    private void assert_(UnifiedEntry unifiedEntry, CodeType type, int[] ordinals) {
+        CodeType TYPE_TYPE = CodeAPI.getJavaType(Type.class);
+
+        Assert.assertEquals("a", unifiedEntry.name().value());
+        Assert.assertArrayEquals(new int[]{0, 1, 2}, unifiedEntry.ids());
+        Assert.assertArrayEquals(new CodeType[]{type, CodeAPI.getJavaType(CharSequence.class)}, unifiedEntry.types());
+        Assert.assertArrayEquals(new EnumValue[]{new EnumValueImpl(TYPE_TYPE, "REGISTER", ordinals[0]), new EnumValueImpl(TYPE_TYPE, "LOG", ordinals[1])}, unifiedEntry.entryTypes());
+        Assert.assertEquals(0, unifiedEntry.flag());
+        Assert.assertEquals(CodeAPI.getJavaType(Entry.class), unifiedEntry.annotationType());
+
+        UnifiedEntry mapped = UnifiedAnnotationsUtilKt.map(unifiedEntry, stringMap -> {
+            stringMap.put("name",
+                    UnifiedAnnotationsUtilKt.map(stringMap.get("name"), stringObjectMap -> {
+                        stringObjectMap.put("value", "y");
+
+                        return Unit.INSTANCE;
+                    }));
+
+            return Unit.INSTANCE;
+        });
+
+        Assert.assertEquals("y", mapped.name().value());
+    }
+
     @Test
     public void test() throws Exception {
-
-        CodeType TYPE_TYPE = CodeAPI.getJavaType(Type.class);
 
         Annotation annotation = AnnotationUnificationlTest.class.getField("a").getDeclaredAnnotation(Entry.class);
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
                 codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null);
 
-        Assert.assertEquals("a", unifiedEntry.name().value());
-        Assert.assertArrayEquals(new int[]{0, 1, 2}, unifiedEntry.ids());
-        Assert.assertArrayEquals(new CodeType[]{Types.STRING, CodeAPI.getJavaType(CharSequence.class)}, unifiedEntry.types());
-        Assert.assertArrayEquals(new EnumValue[]{new EnumValueImpl(TYPE_TYPE, "REGISTER", 0), new EnumValueImpl(TYPE_TYPE, "LOG", 1)}, unifiedEntry.entryTypes());
-        Assert.assertEquals(0, unifiedEntry.flag());
-        Assert.assertEquals(CodeAPI.getJavaType(Entry.class), unifiedEntry.annotationType());
+        assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
     }
 
     @Test
     public void aptTest() throws Exception {
-
-        CodeType TYPE_TYPE = CodeAPI.getJavaType(Type.class);
 
         JavaFileObject TEST = JavaFileObjects.forResource("Test.java");
         IntContainer intContainer = new IntContainer();
@@ -109,12 +127,7 @@ public class AnnotationUnificationlTest {
                             UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotationMirror, UnifiedEntry.class,
                                     codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null);
 
-                            Assert.assertEquals("a", unifiedEntry.name().value());
-                            Assert.assertArrayEquals(new int[]{0, 1, 2}, unifiedEntry.ids());
-                            Assert.assertArrayEquals(new CodeType[]{new PlainCodeType("com.github.jonathanxd.codeapi.extra.test.Test"), CodeAPI.getJavaType(CharSequence.class)}, unifiedEntry.types());
-                            Assert.assertArrayEquals(new EnumValue[]{new EnumValueImpl(TYPE_TYPE, "REGISTER", -1), new EnumValueImpl(TYPE_TYPE, "LOG", -1)}, unifiedEntry.entryTypes());
-                            Assert.assertEquals(0, unifiedEntry.flag());
-                            Assert.assertEquals(CodeAPI.getJavaType(Entry.class), unifiedEntry.annotationType());
+                            assert_(unifiedEntry, new PlainCodeType("com.github.jonathanxd.codeapi.extra.test.Test"), new int[]{-1, -1});
                         }
 
                         return false;

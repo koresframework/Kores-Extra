@@ -27,23 +27,19 @@
  */
 package com.github.jonathanxd.codeapi.extra
 
-import com.github.jonathanxd.codeapi.type.CodeType
-
 /**
- * Unified annotation base interface.
- *
- * **This interface is a trait**.
+ * Map unified annotation [T] value map and create a new instance of unified annotation of type [T]
+ * with modified value map.
  */
-interface UnifiedAnnotation {
+@Suppress("UNCHECKED_CAST")
+inline fun <T : Any> map(annotation: T, mapper: (MutableMap<String, Any>) -> Unit): T {
+    val handler = getHandlerOfAnnotation(annotation)
+    val unifiedAnnotationData = handler.unifiedAnnotationData
+    val map = HashMap(unifiedAnnotationData.values)
 
-    /**
-     * Gets the annotation type of unified annotation.
-     */
-    fun annotationType(): CodeType
+    mapper(map)
 
-    /**
-     * Gets the annotation data.
-     */
-    fun getUnifiedAnnotationData(): UnifiedAnnotationData
-
+    return createProxy(annotation, handler.unificationInterface as Class<T>,
+            UnifiedAnnotationData(unifiedAnnotationData.type, map))
 }
+
