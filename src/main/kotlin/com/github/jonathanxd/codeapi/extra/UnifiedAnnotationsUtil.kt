@@ -27,12 +27,17 @@
  */
 package com.github.jonathanxd.codeapi.extra
 
+import com.github.jonathanxd.codeapi.type.CodeType
+
 /**
  * Map unified annotation [T] value map and create a new instance of unified annotation of type [T]
  * with modified value map.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <T : Any> map(annotation: T, mapper: (MutableMap<String, Any>) -> Unit): T {
+@JvmOverloads
+inline fun <T : Any> map(annotation: T,
+                         mapper: (MutableMap<String, Any>) -> Unit,
+                         propertyMapper: ((name: String, value: Any?, annotationType: CodeType) -> Any)? = null): T {
     val handler = getHandlerOfAnnotation(annotation)
     val unifiedAnnotationData = handler.unifiedAnnotationData
     val map = HashMap(unifiedAnnotationData.values)
@@ -40,6 +45,6 @@ inline fun <T : Any> map(annotation: T, mapper: (MutableMap<String, Any>) -> Uni
     mapper(map)
 
     return createProxy(annotation, handler.unificationInterface as Class<T>,
-            UnifiedAnnotationData(unifiedAnnotationData.type, map))
+            UnifiedAnnotationData(unifiedAnnotationData.type, map), propertyMapper ?: handler.propertyMapper)
 }
 

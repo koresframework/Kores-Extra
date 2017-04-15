@@ -35,6 +35,7 @@ import com.github.jonathanxd.codeapi.CodeAPI;
 import com.github.jonathanxd.codeapi.Types;
 import com.github.jonathanxd.codeapi.base.EnumValue;
 import com.github.jonathanxd.codeapi.base.impl.EnumValueImpl;
+import com.github.jonathanxd.codeapi.builder.AnnotationBuilder;
 import com.github.jonathanxd.codeapi.extra.AnnotationsKt;
 import com.github.jonathanxd.codeapi.extra.UnifiedAnnotation;
 import com.github.jonathanxd.codeapi.extra.UnifiedAnnotationsUtilKt;
@@ -42,6 +43,7 @@ import com.github.jonathanxd.codeapi.type.CodeType;
 import com.github.jonathanxd.codeapi.type.PlainCodeType;
 import com.github.jonathanxd.iutils.collection.CollectionUtils;
 import com.github.jonathanxd.iutils.container.primitivecontainers.IntContainer;
+import com.github.jonathanxd.iutils.map.MapUtils;
 
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
@@ -85,7 +87,7 @@ public class AnnotationUnificationlTest {
                     }));
 
             return Unit.INSTANCE;
-        });
+        }, (s, o, codeType) -> o);
 
         Assert.assertEquals("y", mapped.name().value());
     }
@@ -97,6 +99,47 @@ public class AnnotationUnificationlTest {
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
                 codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null);
+
+        assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
+    }
+
+    @Test
+    public void testCodeAPIAnnotation() throws Exception {
+        CodeType TYPE_TYPE = CodeAPI.getJavaType(Type.class);
+
+        com.github.jonathanxd.codeapi.base.Annotation nameAnnotation = AnnotationBuilder.builder()
+                .withType(CodeAPI.getJavaType(Name.class))
+                .withValues(MapUtils.mapOf(
+                        "value", "test"
+                ))
+                .build();
+
+        com.github.jonathanxd.codeapi.base.Annotation annotation = AnnotationBuilder.builder()
+                .withType(CodeAPI.getJavaType(Entry.class))
+                .withValues(MapUtils.mapOf(
+                        "name", nameAnnotation,
+                        "entryTypes", new EnumValue[]{new EnumValueImpl(TYPE_TYPE, "REGISTER", 0), new EnumValueImpl(TYPE_TYPE, "LOG", 1)},
+                        "ids", new int[] {0, 1, 2},
+                        "flag", 0,
+                        "types", new CodeType[]{Types.STRING, CodeAPI.getJavaType(CharSequence.class)}
+                ))
+                .build();
+
+        UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
+                codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null,
+                (name, value, annotationType) -> {
+
+                    if(name.equals("name"))
+                        return AnnotationsKt.getUnificationInstance(nameAnnotation, UnifiedName.class, codeType -> null, (s, o, codeType) -> {
+                            if(s.equals("value"))
+                                return "a";
+
+                            return o;
+                        });
+
+
+                    return value;
+                });
 
         assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
     }
