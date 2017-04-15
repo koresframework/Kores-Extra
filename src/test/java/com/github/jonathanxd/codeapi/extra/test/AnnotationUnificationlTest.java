@@ -87,7 +87,7 @@ public class AnnotationUnificationlTest {
                     }));
 
             return Unit.INSTANCE;
-        }, (s, o, codeType) -> o);
+        });
 
         Assert.assertEquals("y", mapped.name().value());
     }
@@ -110,7 +110,7 @@ public class AnnotationUnificationlTest {
         com.github.jonathanxd.codeapi.base.Annotation nameAnnotation = AnnotationBuilder.builder()
                 .withType(CodeAPI.getJavaType(Name.class))
                 .withValues(MapUtils.mapOf(
-                        "value", "test"
+                        "value", "a"
                 ))
                 .build();
 
@@ -126,20 +126,7 @@ public class AnnotationUnificationlTest {
                 .build();
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
-                codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null,
-                (name, value, annotationType) -> {
-
-                    if(name.equals("name"))
-                        return AnnotationsKt.getUnificationInstance(nameAnnotation, UnifiedName.class, codeType -> null, (s, o, codeType) -> {
-                            if(s.equals("value"))
-                                return "a";
-
-                            return o;
-                        });
-
-
-                    return value;
-                });
+                codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null);
 
         assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
     }
