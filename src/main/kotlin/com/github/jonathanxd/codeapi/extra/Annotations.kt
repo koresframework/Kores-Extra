@@ -31,6 +31,7 @@ import com.github.jonathanxd.codeapi.base.Annotation
 import com.github.jonathanxd.codeapi.base.EnumValue
 import com.github.jonathanxd.codeapi.type.CodeType
 import com.github.jonathanxd.codeapi.util.codeType
+import com.github.jonathanxd.codeapi.util.getCodeType
 import com.github.jonathanxd.codeapi.util.toCodeType
 import com.github.jonathanxd.iutils.array.ArrayUtils
 import java.lang.reflect.*
@@ -245,7 +246,8 @@ private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: Executab
 
         type as ArrayType
 
-        val unification = type.componentType.unificationType
+        val component = type.componentType
+        val unification = additionalUnificationGetter(component.getCodeType(elements)) ?: component.unificationType
 
         val newArray = java.lang.reflect.Array.newInstance(unification, value.size)
 
@@ -285,6 +287,14 @@ private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (Type) -> 
         return this.toUnified(additionalUnificationGetter, elements)
     }
 
+    if (this is Annotation) {
+        additionalUnificationGetter(this.type)?.let {
+            return getUnificationInstance(this, it, additionalUnificationGetter, elements)
+        }
+
+        return this.toUnified(additionalUnificationGetter, elements)
+    }
+
     if (this is Class<*>)
         return this.codeType
 
@@ -298,7 +308,9 @@ private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (Type) -> 
         val array = this::class.java
         val componentType = array.componentType
 
-        val newArray = java.lang.reflect.Array.newInstance(componentType.unificationType, oldArray.size)
+        val uni = additionalUnificationGetter(componentType) ?: componentType.unificationType
+
+        val newArray = java.lang.reflect.Array.newInstance(uni, oldArray.size)
 
         oldArray.forEachIndexed { index, arg ->
             java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(additionalUnificationGetter, elements))
@@ -322,7 +334,20 @@ private fun Annotation.toUnified(additionalUnificationGetter: (Type) -> Class<*>
                 getUnificationInstance(annotation, get, additionalUnificationGetter, elements)
             } else it.value
 
-        } else it.value
+        } else if (it.value::class.java.isArray
+                && it.value::class.java.componentType == Annotation::class.java) {
+            val oldArray = ArrayUtils.toObjectArray(it.value)
+
+            val newArray = java.lang.reflect.Array.newInstance(Any::class.java, oldArray.size)
+
+            oldArray.forEachIndexed { index, arg ->
+                java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(additionalUnificationGetter, elements))
+            }
+
+            newArray
+        }else{
+            it.value
+        }
 
     }
 
@@ -380,10 +405,32 @@ class ProxyInvocationHandler(val original: Any?,
         }
 
         if (unifiedAnnotationData.values.containsKey(method.name)) {
-            return unifiedAnnotationData.values[method.name]
+
+            val value = unifiedAnnotationData.values[method.name]
+
+            if (value != null && value::class.java.isArray && method.returnType.isArray) {
+                if (java.lang.reflect.Array.getLength(value) == 0)
+                    return java.lang.reflect.Array.newInstance(method.returnType.componentType, 0)
+
+                val oldArray = ArrayUtils.toObjectArray(value)
+
+                val array = method.returnType
+                val componentType = array.componentType
+
+                val newArray = java.lang.reflect.Array.newInstance(componentType, oldArray.size)
+
+                oldArray.forEachIndexed { index, arg ->
+                    java.lang.reflect.Array.set(newArray, index, arg)
+                }
+
+                return newArray
+            }
+
+            return value
                     ?: throw NullPointerException("Annotation properties should not return null! (at: $method)")
 
         }
+
 
         return try {
             original?.let {

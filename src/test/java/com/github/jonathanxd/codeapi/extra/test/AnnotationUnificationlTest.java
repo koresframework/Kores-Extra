@@ -49,6 +49,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -59,19 +60,23 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
 
 import kotlin.Unit;
 
 public class AnnotationUnificationlTest {
 
-    @Entry(name = @Name("a"), entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {String.class, CharSequence.class})
+    @Entry(names = {@Name("a"), @Name("b")},
+            name = @Name("a"),
+            entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {String.class, CharSequence.class})
     public static final String a = "0";
 
     private void assert_(UnifiedEntry unifiedEntry, CodeType type, int[] ordinals) {
         CodeType TYPE_TYPE = CodeTypes.getCodeType(Type.class);
 
+        String[] names = Arrays.stream(unifiedEntry.names()).map(UnifiedName::value).toArray(String[]::new);
+
+        Assert.assertArrayEquals(new String[]{"a", "b"}, names);
         Assert.assertEquals("a", unifiedEntry.name().value());
         Assert.assertArrayEquals(new int[]{0, 1, 2}, unifiedEntry.ids());
         Assert.assertArrayEquals(new CodeType[]{type, CodeTypes.getCodeType(CharSequence.class)}, unifiedEntry.types());
@@ -115,9 +120,24 @@ public class AnnotationUnificationlTest {
                 ))
                 .build();
 
+        com.github.jonathanxd.codeapi.base.Annotation nameAnnotationA = com.github.jonathanxd.codeapi.base.Annotation.Builder.builder()
+                .type(CodeTypes.getCodeType(Name.class))
+                .values(MapUtils.mapOf(
+                        "value", "a"
+                ))
+                .build();
+
+        com.github.jonathanxd.codeapi.base.Annotation nameAnnotationB = com.github.jonathanxd.codeapi.base.Annotation.Builder.builder()
+                .type(CodeTypes.getCodeType(Name.class))
+                .values(MapUtils.mapOf(
+                        "value", "b"
+                ))
+                .build();
+
         com.github.jonathanxd.codeapi.base.Annotation annotation = com.github.jonathanxd.codeapi.base.Annotation.Builder.builder()
                 .type(Entry.class)
                 .values(MapUtils.mapOf(
+                        "names", new com.github.jonathanxd.codeapi.base.Annotation[] {nameAnnotationA, nameAnnotationB},
                         "name", nameAnnotation,
                         "entryTypes", new EnumValue[]{new EnumValue(TYPE_TYPE, "REGISTER", 0), new EnumValue(TYPE_TYPE, "LOG", 1)},
                         "ids", new int[]{0, 1, 2},
@@ -144,6 +164,7 @@ public class AnnotationUnificationlTest {
                 .processedWith(new AbstractProcessor() {
 
                     ProcessingEnvironment processingEnvironment;
+
                     @Override
                     public synchronized void init(ProcessingEnvironment processingEnv) {
                         super.init(processingEnv);
@@ -166,6 +187,11 @@ public class AnnotationUnificationlTest {
                             UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotationMirror, UnifiedEntry.class,
                                     codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null,
                                     processingEnvironment.getElementUtils());
+
+
+                            String[] names = Arrays.stream(unifiedEntry.names()).map(UnifiedName::value).toArray(String[]::new);
+
+                            Assert.assertArrayEquals(new String[]{"a", "b"}, names);
 
                             assert_(unifiedEntry, new PlainCodeType("com.github.jonathanxd.codeapi.extra.test.Test"), new int[]{-1, -1});
                         }
@@ -205,6 +231,8 @@ public class AnnotationUnificationlTest {
         CodeType[] types();
 
         UnifiedName name();
+
+        UnifiedName[] names();
 
         EnumValue[] entryTypes();
 

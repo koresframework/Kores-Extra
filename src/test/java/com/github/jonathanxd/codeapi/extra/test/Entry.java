@@ -45,6 +45,8 @@ public @interface Entry {
 
     Name name() default @Name("a");
 
+    Name[] names() default @Name("");
+
     int[] ids();
 
     int flag();
