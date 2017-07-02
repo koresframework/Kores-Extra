@@ -29,18 +29,16 @@ package com.github.jonathanxd.codeapi.extra
 
 import com.github.jonathanxd.codeapi.base.Annotation
 import com.github.jonathanxd.codeapi.base.EnumValue
-import com.github.jonathanxd.codeapi.base.impl.EnumValueImpl
 import com.github.jonathanxd.codeapi.type.CodeType
 import com.github.jonathanxd.codeapi.util.codeType
 import com.github.jonathanxd.codeapi.util.toCodeType
 import com.github.jonathanxd.iutils.array.ArrayUtils
-import java.lang.reflect.InvocationHandler
-import java.lang.reflect.Method
+import java.lang.reflect.*
 import java.lang.reflect.Modifier
-import java.lang.reflect.Proxy
 import java.util.*
 import javax.lang.model.element.*
 import javax.lang.model.type.*
+import javax.lang.model.util.Elements
 
 /**
  * Annotation systems unification.
@@ -145,14 +143,16 @@ import javax.lang.model.type.*
  * }
  * ```
  *
- *
+ * **Obs:** Since 1.2, Unification of [Javax Annotation Mirror][AnnotationMirror] requires a non-null [elements] instance,
+ * if the [annotation] is an [AnnotationMirror], then [elements] **must not** be null, otherwise you can pass null.
  */
 @JvmOverloads
 fun <T : Any> getUnificationInstance(annotation: Any,
                                      unificationInterface: Class<T>,
-                                     additionalUnificationGetter: (CodeType) -> Class<*>? = { null }): T {
+                                     additionalUnificationGetter: (Type) -> Class<*>? = { null },
+                                     elements: Elements? = null): T {
 
-    val unifiedAnnotation = getUnifiedAnnotationData(annotation, additionalUnificationGetter)
+    val unifiedAnnotation = getUnifiedAnnotationData(annotation, additionalUnificationGetter, elements)
 
     return createProxy(annotation, unificationInterface, unifiedAnnotation)
 }
@@ -162,7 +162,8 @@ fun <T : Any> createProxy(annotationInstance: Any?,
                           unificationInterface: Class<T>,
                           unifiedAnnotationData: UnifiedAnnotationData): T {
 
-    return Proxy.newProxyInstance(unificationInterface.classLoader, arrayOf(unificationInterface), ProxyInvocationHandler(annotationInstance, unificationInterface, unifiedAnnotationData)) as T
+    return Proxy.newProxyInstance(unificationInterface.classLoader, arrayOf(unificationInterface),
+            ProxyInvocationHandler(annotationInstance, unificationInterface, unifiedAnnotationData)) as T
 }
 
 fun getHandlerOfAnnotation(proxy: Any) =
@@ -177,16 +178,17 @@ fun getUnificationInterfaceOfAnnotation(proxy: Any) =
         getHandlerOfAnnotation(proxy).unificationInterface
 
 fun getUnifiedAnnotationData(annotation: Any,
-                             additionalUnificationGetter: (CodeType) -> Class<*>? = { null }): UnifiedAnnotationData =
+                             additionalUnificationGetter: (Type) -> Class<*>? = { null },
+                             elements: Elements? = null): UnifiedAnnotationData =
         when (annotation) {
-            is kotlin.Annotation -> annotation.toUnified(additionalUnificationGetter)
-            is AnnotationMirror -> annotation.toUnified(additionalUnificationGetter)
-            is Annotation -> annotation.toUnified(additionalUnificationGetter) // Remap values
+            is kotlin.Annotation -> annotation.toUnified(additionalUnificationGetter, elements)
+            is AnnotationMirror -> annotation.toUnified(additionalUnificationGetter, elements ?: throw IllegalArgumentException("Since 1.2, Javax Annotation Mirror unification requires non-null 'elements' instance."))
+            is Annotation -> annotation.toUnified(additionalUnificationGetter, elements) // Remap values
             else -> throw IllegalArgumentException("Unsupported annotation type: '${annotation::class.java.canonicalName}' (of instance '$annotation')")
         }
 
-private fun AnnotationMirror.toUnified(additionalUnificationGetter: (CodeType) -> Class<*>?): UnifiedAnnotationData {
-    val type = this.annotationType.toCodeType(false)
+private fun AnnotationMirror.toUnified(additionalUnificationGetter: (Type) -> Class<*>?, elements: Elements): UnifiedAnnotationData {
+    val type = this.annotationType.toCodeType(false, elements)
 
     val element = this.annotationType.asElement() as TypeElement
 
@@ -196,39 +198,44 @@ private fun AnnotationMirror.toUnified(additionalUnificationGetter: (CodeType) -
 
     element.enclosedElements.forEach {
 
-        if(it is ExecutableElement) {
+        if (it is ExecutableElement) {
             val name = it.simpleName.toString()
 
             val annotationValue = this.elementValues[it] ?: it.defaultValue
 
-            properties.put(name, annotationValue.toCodeAPIAnnotationValue(it, it.returnType, additionalUnificationGetter))
+            properties.put(name, annotationValue.toCodeAPIAnnotationValue(it, it.returnType, additionalUnificationGetter, elements))
         }
 
 
     }
 
-    return UnifiedAnnotationData(type, properties)
+    return UnifiedAnnotationData(type.codeType, properties)
 }
 
 
 private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: ExecutableElement,
                                                      type: TypeMirror,
-                                                     additionalUnificationGetter: (CodeType) -> Class<*>?): Any {
+                                                     additionalUnificationGetter: (Type) -> Class<*>?,
+                                                     elements: Elements): Any {
     val value = this.value ?: executableElement.defaultValue
 
     if (value is AnnotationMirror) {
-        additionalUnificationGetter(value.annotationType.toCodeType(false))?.let {
-            return getUnificationInstance(this, it, additionalUnificationGetter)
+        additionalUnificationGetter(value.annotationType.toCodeType(false, elements))?.let {
+            return getUnificationInstance(this, it, additionalUnificationGetter, elements)
         }
 
-        return value.toUnified(additionalUnificationGetter)
+        return value.toUnified(additionalUnificationGetter, elements)
     }
 
     if (value is TypeMirror)
-        return value.toCodeType(false)
+        return value.toCodeType(false, elements)
 
     if (value is VariableElement)
-        return EnumValueImpl(enumType = value.asType().toCodeType(false), enumEntry = value.simpleName.toString(), ordinal = -1)
+        return EnumValue(
+                enumType = value.asType().toCodeType(false, elements),
+                enumEntry = value.simpleName.toString(),
+                ordinal = -1
+        )
 
     if (value is List<*>) {
         // Tries to convert to an reified array
@@ -243,7 +250,7 @@ private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: Executab
         val newArray = java.lang.reflect.Array.newInstance(unification, value.size)
 
         value.forEachIndexed { index, arg ->
-            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(executableElement, type.componentType, additionalUnificationGetter))
+            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(executableElement, type.componentType, additionalUnificationGetter, elements))
         }
 
         return newArray
@@ -252,7 +259,7 @@ private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: Executab
     return value
 }
 
-private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (CodeType) -> Class<*>?): UnifiedAnnotationData {
+private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (Type) -> Class<*>?, elements: Elements?): UnifiedAnnotationData {
     val type = this.annotationClass
     val jClass = this::class.java
 
@@ -261,7 +268,7 @@ private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (CodeType) 
     jClass.methods.forEach {
         if (it.declaringClass != Any::class.java) {
             if (Modifier.isPublic(it.modifiers) && it.parameterCount == 0) {
-                properties.put(it.name, it.invoke(this).toCodeAPIAnnotationValue(additionalUnificationGetter))
+                properties.put(it.name, it.invoke(this).toCodeAPIAnnotationValue(additionalUnificationGetter, elements))
             }
         }
     }
@@ -269,20 +276,20 @@ private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (CodeType) 
     return UnifiedAnnotationData(type.codeType, properties)
 }
 
-private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (CodeType) -> Class<*>?): Any {
+private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (Type) -> Class<*>?, elements: Elements?): Any {
     if (this is kotlin.Annotation) {
         additionalUnificationGetter(this.annotationClass.codeType)?.let {
-            return getUnificationInstance(this, it, additionalUnificationGetter)
+            return getUnificationInstance(this, it, additionalUnificationGetter, elements)
         }
 
-        return this.toUnified(additionalUnificationGetter)
+        return this.toUnified(additionalUnificationGetter, elements)
     }
 
     if (this is Class<*>)
         return this.codeType
 
     if (this is Enum<*>)
-        return EnumValueImpl(enumType = this::class.java.codeType, enumEntry = this.name, ordinal = this.ordinal)
+        return EnumValue(enumType = this::class.java.codeType, enumEntry = this.name, ordinal = this.ordinal)
 
     if (this::class.java.isArray) {
 
@@ -294,7 +301,7 @@ private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (CodeType)
         val newArray = java.lang.reflect.Array.newInstance(componentType.unificationType, oldArray.size)
 
         oldArray.forEachIndexed { index, arg ->
-            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(additionalUnificationGetter))
+            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(additionalUnificationGetter, elements))
         }
 
         return newArray
@@ -303,7 +310,7 @@ private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (CodeType)
     return this
 }
 
-private fun Annotation.toUnified(additionalUnificationGetter: (CodeType) -> Class<*>?): UnifiedAnnotationData {
+private fun Annotation.toUnified(additionalUnificationGetter: (Type) -> Class<*>?, elements: Elements?): UnifiedAnnotationData {
     val type = this.type
 
     val properties = this.values.mapValues {
@@ -312,14 +319,14 @@ private fun Annotation.toUnified(additionalUnificationGetter: (CodeType) -> Clas
             val get = additionalUnificationGetter(annotation.type)
 
             if (get != null) {
-                getUnificationInstance(annotation, get, additionalUnificationGetter)
+                getUnificationInstance(annotation, get, additionalUnificationGetter, elements)
             } else it.value
 
         } else it.value
 
     }
 
-    return UnifiedAnnotationData(type, properties)
+    return UnifiedAnnotationData(type.codeType, properties)
 }
 
 
@@ -373,7 +380,8 @@ class ProxyInvocationHandler(val original: Any?,
         }
 
         if (unifiedAnnotationData.values.containsKey(method.name)) {
-            return unifiedAnnotationData.values[method.name] ?: throw NullPointerException("Annotation properties should not return null! (at: $method)")
+            return unifiedAnnotationData.values[method.name]
+                    ?: throw NullPointerException("Annotation properties should not return null! (at: $method)")
 
         }
 
@@ -382,7 +390,7 @@ class ProxyInvocationHandler(val original: Any?,
                 (if (args != null) method.invoke(it, *args) else method.invoke(it))
                         ?: throw NullPointerException("Annotation properties should not return null! (at: $method)")
             } ?: throw NoSuchMethodError("Method not found '$method'!")
-        }catch (t: Throwable) {
+        } catch (t: Throwable) {
             throw ReflectiveOperationException("Method not found '$method' at $original!", t)
         }
     }

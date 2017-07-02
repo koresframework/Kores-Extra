@@ -31,16 +31,15 @@ import com.google.common.truth.FailureStrategy;
 import com.google.testing.compile.JavaFileObjects;
 import com.google.testing.compile.JavaSourcesSubjectFactory;
 
-import com.github.jonathanxd.codeapi.CodeAPI;
 import com.github.jonathanxd.codeapi.Types;
 import com.github.jonathanxd.codeapi.base.EnumValue;
-import com.github.jonathanxd.codeapi.base.impl.EnumValueImpl;
-import com.github.jonathanxd.codeapi.builder.AnnotationBuilder;
 import com.github.jonathanxd.codeapi.extra.AnnotationsKt;
 import com.github.jonathanxd.codeapi.extra.UnifiedAnnotation;
 import com.github.jonathanxd.codeapi.extra.UnifiedAnnotationsUtilKt;
 import com.github.jonathanxd.codeapi.type.CodeType;
 import com.github.jonathanxd.codeapi.type.PlainCodeType;
+import com.github.jonathanxd.codeapi.util.CodeTypes;
+import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.iutils.collection.CollectionUtils;
 import com.github.jonathanxd.iutils.container.primitivecontainers.IntContainer;
 import com.github.jonathanxd.iutils.map.MapUtils;
@@ -54,11 +53,13 @@ import java.util.List;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
 
 import kotlin.Unit;
@@ -69,14 +70,14 @@ public class AnnotationUnificationlTest {
     public static final String a = "0";
 
     private void assert_(UnifiedEntry unifiedEntry, CodeType type, int[] ordinals) {
-        CodeType TYPE_TYPE = CodeAPI.getJavaType(Type.class);
+        CodeType TYPE_TYPE = CodeTypes.getCodeType(Type.class);
 
         Assert.assertEquals("a", unifiedEntry.name().value());
         Assert.assertArrayEquals(new int[]{0, 1, 2}, unifiedEntry.ids());
-        Assert.assertArrayEquals(new CodeType[]{type, CodeAPI.getJavaType(CharSequence.class)}, unifiedEntry.types());
-        Assert.assertArrayEquals(new EnumValue[]{new EnumValueImpl(TYPE_TYPE, "REGISTER", ordinals[0]), new EnumValueImpl(TYPE_TYPE, "LOG", ordinals[1])}, unifiedEntry.entryTypes());
+        Assert.assertArrayEquals(new CodeType[]{type, CodeTypes.getCodeType(CharSequence.class)}, unifiedEntry.types());
+        Assert.assertArrayEquals(new EnumValue[]{new EnumValue(TYPE_TYPE, "REGISTER", ordinals[0]), new EnumValue(TYPE_TYPE, "LOG", ordinals[1])}, unifiedEntry.entryTypes());
         Assert.assertEquals(0, unifiedEntry.flag());
-        Assert.assertEquals(CodeAPI.getJavaType(Entry.class), unifiedEntry.annotationType());
+        Assert.assertEquals(CodeTypes.getCodeType(Entry.class), unifiedEntry.annotationType());
 
         UnifiedEntry mapped = UnifiedAnnotationsUtilKt.map(unifiedEntry, stringMap -> {
             stringMap.put("name",
@@ -98,35 +99,35 @@ public class AnnotationUnificationlTest {
         Annotation annotation = AnnotationUnificationlTest.class.getField("a").getDeclaredAnnotation(Entry.class);
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
-                codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null);
+                codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null);
 
         assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
     }
 
     @Test
     public void testCodeAPIAnnotation() throws Exception {
-        CodeType TYPE_TYPE = CodeAPI.getJavaType(Type.class);
+        CodeType TYPE_TYPE = CodeTypes.getCodeType(Type.class);
 
-        com.github.jonathanxd.codeapi.base.Annotation nameAnnotation = AnnotationBuilder.builder()
-                .withType(CodeAPI.getJavaType(Name.class))
-                .withValues(MapUtils.mapOf(
+        com.github.jonathanxd.codeapi.base.Annotation nameAnnotation = com.github.jonathanxd.codeapi.base.Annotation.Builder.builder()
+                .type(CodeTypes.getCodeType(Name.class))
+                .values(MapUtils.mapOf(
                         "value", "a"
                 ))
                 .build();
 
-        com.github.jonathanxd.codeapi.base.Annotation annotation = AnnotationBuilder.builder()
-                .withType(CodeAPI.getJavaType(Entry.class))
-                .withValues(MapUtils.mapOf(
+        com.github.jonathanxd.codeapi.base.Annotation annotation = com.github.jonathanxd.codeapi.base.Annotation.Builder.builder()
+                .type(Entry.class)
+                .values(MapUtils.mapOf(
                         "name", nameAnnotation,
-                        "entryTypes", new EnumValue[]{new EnumValueImpl(TYPE_TYPE, "REGISTER", 0), new EnumValueImpl(TYPE_TYPE, "LOG", 1)},
-                        "ids", new int[] {0, 1, 2},
+                        "entryTypes", new EnumValue[]{new EnumValue(TYPE_TYPE, "REGISTER", 0), new EnumValue(TYPE_TYPE, "LOG", 1)},
+                        "ids", new int[]{0, 1, 2},
                         "flag", 0,
-                        "types", new CodeType[]{Types.STRING, CodeAPI.getJavaType(CharSequence.class)}
+                        "types", new CodeType[]{Types.STRING, CodeTypes.getCodeType(CharSequence.class)}
                 ))
                 .build();
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
-                codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null);
+                codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null);
 
         assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
     }
@@ -141,6 +142,14 @@ public class AnnotationUnificationlTest {
                 .getSubject(new Fail(),
                         CollectionUtils.listOf(TEST))
                 .processedWith(new AbstractProcessor() {
+
+                    ProcessingEnvironment processingEnvironment;
+                    @Override
+                    public synchronized void init(ProcessingEnvironment processingEnv) {
+                        super.init(processingEnv);
+                        processingEnvironment = processingEnv;
+                    }
+
                     @Override
                     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
@@ -155,7 +164,8 @@ public class AnnotationUnificationlTest {
                             AnnotationMirror annotationMirror = annotationMirrors.get(0);
 
                             UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotationMirror, UnifiedEntry.class,
-                                    codeType -> codeType.is(CodeAPI.getJavaType(Name.class)) ? UnifiedName.class : null);
+                                    codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null,
+                                    processingEnvironment.getElementUtils());
 
                             assert_(unifiedEntry, new PlainCodeType("com.github.jonathanxd.codeapi.extra.test.Test"), new int[]{-1, -1});
                         }
