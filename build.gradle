@@ -47,7 +47,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
 
     // Utilities
-    compile 'com.github.JonathanxD:CodeAPI:alpha-4.0.0-base-4'
+    compile 'com.github.JonathanxD:CodeAPI:alpha-4.0.0-base-5'
     compile 'com.github.JonathanxD:JwIUtils:4.5.0-f'
 
     testCompile "com.google.testing.compile:compile-testing:0.8"
