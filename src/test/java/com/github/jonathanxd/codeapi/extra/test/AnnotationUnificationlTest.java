@@ -40,7 +40,7 @@ import com.github.jonathanxd.codeapi.type.CodeType;
 import com.github.jonathanxd.codeapi.type.PlainCodeType;
 import com.github.jonathanxd.codeapi.util.CodeTypes;
 import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
-import com.github.jonathanxd.iutils.collection.CollectionUtils;
+import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.container.primitivecontainers.IntContainer;
 import com.github.jonathanxd.iutils.map.MapUtils;
 
@@ -137,7 +137,7 @@ public class AnnotationUnificationlTest {
         com.github.jonathanxd.codeapi.base.Annotation annotation = com.github.jonathanxd.codeapi.base.Annotation.Builder.builder()
                 .type(Entry.class)
                 .values(MapUtils.mapOf(
-                        "names", new com.github.jonathanxd.codeapi.base.Annotation[] {nameAnnotationA, nameAnnotationB},
+                        "names", new com.github.jonathanxd.codeapi.base.Annotation[]{nameAnnotationA, nameAnnotationB},
                         "name", nameAnnotation,
                         "entryTypes", new EnumValue[]{new EnumValue(TYPE_TYPE, "REGISTER", 0), new EnumValue(TYPE_TYPE, "LOG", 1)},
                         "ids", new int[]{0, 1, 2},
@@ -160,7 +160,7 @@ public class AnnotationUnificationlTest {
 
         JavaSourcesSubjectFactory.javaSources()
                 .getSubject(new Fail(),
-                        CollectionUtils.listOf(TEST))
+                        Collections3.listOf(TEST))
                 .processedWith(new AbstractProcessor() {
 
                     ProcessingEnvironment processingEnvironment;
@@ -201,7 +201,7 @@ public class AnnotationUnificationlTest {
 
                     @Override
                     public Set<String> getSupportedAnnotationTypes() {
-                        return CollectionUtils.setOf("com.github.jonathanxd.codeapi.extra.test.Entry");
+                        return Collections3.setOf("com.github.jonathanxd.codeapi.extra.test.Entry");
                     }
 
                     @Override
