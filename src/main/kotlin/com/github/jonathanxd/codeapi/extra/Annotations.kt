@@ -234,8 +234,7 @@ private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: Executab
     if (value is VariableElement)
         return EnumValue(
                 enumType = value.asType().toCodeType(false, elements),
-                enumEntry = value.simpleName.toString(),
-                ordinal = -1
+                enumEntry = value.simpleName.toString()
         )
 
     if (value is List<*>) {
@@ -246,16 +245,9 @@ private fun AnnotationValue.toCodeAPIAnnotationValue(executableElement: Executab
 
         type as ArrayType
 
-        val component = type.componentType
-        val unification = additionalUnificationGetter(component.getCodeType(elements)) ?: component.unificationType
-
-        val newArray = java.lang.reflect.Array.newInstance(unification, value.size)
-
-        value.forEachIndexed { index, arg ->
-            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(executableElement, type.componentType, additionalUnificationGetter, elements))
+        return value.map {
+            it.toCodeAPIAnnotationValue(executableElement, type.componentType, additionalUnificationGetter, elements)
         }
-
-        return newArray
     }
 
     return value
@@ -270,7 +262,8 @@ private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (Type) -> C
     jClass.methods.forEach {
         if (it.declaringClass != Any::class.java) {
             if (Modifier.isPublic(it.modifiers) && it.parameterCount == 0) {
-                properties.put(it.name, it.invoke(this).toCodeAPIAnnotationValue(additionalUnificationGetter, elements))
+                properties.put(it.name, it.invoke(this).toCodeAPIAnnotationValue(it.returnType, additionalUnificationGetter,
+                        elements))
             }
         }
     }
@@ -278,7 +271,9 @@ private fun kotlin.Annotation.toUnified(additionalUnificationGetter: (Type) -> C
     return UnifiedAnnotationData(type.codeType, properties)
 }
 
-private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (Type) -> Class<*>?, elements: Elements?): Any {
+private fun Any.toCodeAPIAnnotationValue(rType: Type,
+                                         additionalUnificationGetter: (Type) -> Class<*>?,
+                                         elements: Elements?): Any {
     if (this is kotlin.Annotation) {
         additionalUnificationGetter(this.annotationClass.codeType)?.let {
             return getUnificationInstance(this, it, additionalUnificationGetter, elements)
@@ -299,7 +294,7 @@ private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (Type) -> 
         return this.codeType
 
     if (this is Enum<*>)
-        return EnumValue(enumType = this::class.java.codeType, enumEntry = this.name, ordinal = this.ordinal)
+        return EnumValue(enumType = rType, enumEntry = this.name)
 
     if (this::class.java.isArray) {
 
@@ -308,15 +303,16 @@ private fun Any.toCodeAPIAnnotationValue(additionalUnificationGetter: (Type) -> 
         val array = this::class.java
         val componentType = array.componentType
 
-        val uni = additionalUnificationGetter(componentType) ?: componentType.unificationType
-
-        val newArray = java.lang.reflect.Array.newInstance(uni, oldArray.size)
-
-        oldArray.forEachIndexed { index, arg ->
-            java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(additionalUnificationGetter, elements))
+        return oldArray.map {
+            it.toCodeAPIAnnotationValue(componentType, additionalUnificationGetter, elements)
         }
 
-        return newArray
+    }
+
+    if (this is List<*>) {
+        return this.filterNotNull().forEach {
+            it.toCodeAPIAnnotationValue(rType, additionalUnificationGetter, elements)
+        }
     }
 
     return this
@@ -334,18 +330,19 @@ private fun Annotation.toUnified(additionalUnificationGetter: (Type) -> Class<*>
                 getUnificationInstance(annotation, get, additionalUnificationGetter, elements)
             } else it.value
 
-        } else if (it.value::class.java.isArray
-                && it.value::class.java.componentType == Annotation::class.java) {
+        } else if (it.value::class.java.isArray) {
             val oldArray = ArrayUtils.toObjectArray(it.value)
 
-            val newArray = java.lang.reflect.Array.newInstance(Any::class.java, oldArray.size)
+            val arrayComp = it.value::class.java.componentType
 
-            oldArray.forEachIndexed { index, arg ->
-                java.lang.reflect.Array.set(newArray, index, arg.toCodeAPIAnnotationValue(additionalUnificationGetter, elements))
+            oldArray.map {
+                it.toCodeAPIAnnotationValue(arrayComp, additionalUnificationGetter, elements)
             }
-
-            newArray
-        }else{
+        } else if (it.value is List<*> && (it.value as List<*>).filterNotNull().all { it is Annotation }) {
+            (it.value as List<*>).filterNotNull().map { it as Annotation }.map {
+                it.toCodeAPIAnnotationValue(it.type, additionalUnificationGetter, elements)
+            }
+        } else {
             it.value
         }
 

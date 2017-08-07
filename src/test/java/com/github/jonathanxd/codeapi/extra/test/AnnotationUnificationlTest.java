@@ -49,7 +49,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -71,16 +70,31 @@ public class AnnotationUnificationlTest {
             entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {String.class, CharSequence.class})
     public static final String a = "0";
 
-    private void assert_(UnifiedEntry unifiedEntry, CodeType type, int[] ordinals) {
+    private void assertEq_(List<EnumValue> enumValues, List<EnumValue> to) {
+        Assert.assertEquals(enumValues.size(), to.size());
+
+        for (int i = 0; i < enumValues.size(); i++) {
+            EnumValue enumValue = enumValues.get(i);
+            EnumValue toValue = to.get(i);
+            Assert.assertTrue(ImplicitCodeType.is(enumValue.getType(), toValue.getType()));
+
+            Assert.assertEquals(enumValue.getEnumEntry(), toValue.getEnumEntry());
+        }
+    }
+
+    private void assert_(UnifiedEntry unifiedEntry, CodeType type) {
         CodeType TYPE_TYPE = CodeTypes.getCodeType(Type.class);
 
-        String[] names = Arrays.stream(unifiedEntry.names()).map(UnifiedName::value).toArray(String[]::new);
+        String[] names = unifiedEntry.names().stream().map(UnifiedName::value).toArray(String[]::new);
 
         Assert.assertArrayEquals(new String[]{"a", "b"}, names);
         Assert.assertEquals("a", unifiedEntry.name().value());
-        Assert.assertArrayEquals(new int[]{0, 1, 2}, unifiedEntry.ids());
-        Assert.assertArrayEquals(new CodeType[]{type, CodeTypes.getCodeType(CharSequence.class)}, unifiedEntry.types());
-        Assert.assertArrayEquals(new EnumValue[]{new EnumValue(TYPE_TYPE, "REGISTER", ordinals[0]), new EnumValue(TYPE_TYPE, "LOG", ordinals[1])}, unifiedEntry.entryTypes());
+        Assert.assertEquals(Collections3.listOf(0, 1, 2), unifiedEntry.ids());
+        Assert.assertEquals(Collections3.listOf(type, CodeTypes.getCodeType(CharSequence.class)), unifiedEntry.types());
+        assertEq_(Collections3.listOf(
+                new EnumValue(TYPE_TYPE, "REGISTER"),
+                new EnumValue(TYPE_TYPE, "LOG")),
+                unifiedEntry.entryTypes());
         Assert.assertEquals(0, unifiedEntry.flag());
         Assert.assertEquals(CodeTypes.getCodeType(Entry.class), unifiedEntry.annotationType());
 
@@ -106,7 +120,7 @@ public class AnnotationUnificationlTest {
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
                 codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null);
 
-        assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
+        assert_(unifiedEntry, Types.STRING);
     }
 
     @Test
@@ -137,19 +151,19 @@ public class AnnotationUnificationlTest {
         com.github.jonathanxd.codeapi.base.Annotation annotation = com.github.jonathanxd.codeapi.base.Annotation.Builder.builder()
                 .type(Entry.class)
                 .values(MapUtils.mapOf(
-                        "names", new com.github.jonathanxd.codeapi.base.Annotation[]{nameAnnotationA, nameAnnotationB},
+                        "names", Collections3.listOf(nameAnnotationA, nameAnnotationB),
                         "name", nameAnnotation,
-                        "entryTypes", new EnumValue[]{new EnumValue(TYPE_TYPE, "REGISTER", 0), new EnumValue(TYPE_TYPE, "LOG", 1)},
-                        "ids", new int[]{0, 1, 2},
+                        "entryTypes", Collections3.listOf(new EnumValue(TYPE_TYPE, "REGISTER"), new EnumValue(TYPE_TYPE, "LOG")),
+                        "ids", Collections3.listOf(0, 1, 2),
                         "flag", 0,
-                        "types", new CodeType[]{Types.STRING, CodeTypes.getCodeType(CharSequence.class)}
+                        "types", Collections3.listOf(Types.STRING, CodeTypes.getCodeType(CharSequence.class))
                 ))
                 .build();
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
                 codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null);
 
-        assert_(unifiedEntry, Types.STRING, new int[]{0, 1});
+        assert_(unifiedEntry, Types.STRING);
     }
 
     @Test
@@ -189,11 +203,11 @@ public class AnnotationUnificationlTest {
                                     processingEnvironment.getElementUtils());
 
 
-                            String[] names = Arrays.stream(unifiedEntry.names()).map(UnifiedName::value).toArray(String[]::new);
+                            String[] names = unifiedEntry.names().stream().map(UnifiedName::value).toArray(String[]::new);
 
                             Assert.assertArrayEquals(new String[]{"a", "b"}, names);
 
-                            assert_(unifiedEntry, new PlainCodeType("com.github.jonathanxd.codeapi.extra.test.Test"), new int[]{-1, -1});
+                            assert_(unifiedEntry, new PlainCodeType("com.github.jonathanxd.codeapi.extra.test.Test"));
                         }
 
                         return false;
@@ -228,15 +242,15 @@ public class AnnotationUnificationlTest {
 
     public interface UnifiedEntry {
 
-        CodeType[] types();
+        List<CodeType> types();
 
         UnifiedName name();
 
-        UnifiedName[] names();
+        List<UnifiedName> names();
 
-        EnumValue[] entryTypes();
+        List<EnumValue> entryTypes();
 
-        int[] ids();
+        List<Integer> ids();
 
         int flag();
 
