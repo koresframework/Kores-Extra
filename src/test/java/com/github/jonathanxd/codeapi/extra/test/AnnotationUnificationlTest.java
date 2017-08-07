@@ -34,14 +34,19 @@ import com.google.testing.compile.JavaSourcesSubjectFactory;
 import com.github.jonathanxd.codeapi.Types;
 import com.github.jonathanxd.codeapi.base.EnumValue;
 import com.github.jonathanxd.codeapi.extra.AnnotationsKt;
+import com.github.jonathanxd.codeapi.extra.JavaAnnotationResolverFunc;
+import com.github.jonathanxd.codeapi.extra.JsonAnnotationUnifierKt;
+import com.github.jonathanxd.codeapi.extra.ModelAnnotationResolverFunc;
 import com.github.jonathanxd.codeapi.extra.UnifiedAnnotation;
 import com.github.jonathanxd.codeapi.extra.UnifiedAnnotationsUtilKt;
 import com.github.jonathanxd.codeapi.type.CodeType;
 import com.github.jonathanxd.codeapi.type.PlainCodeType;
+import com.github.jonathanxd.codeapi.util.CodeTypeResolverFunc;
 import com.github.jonathanxd.codeapi.util.CodeTypes;
 import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.container.primitivecontainers.IntContainer;
+import com.github.jonathanxd.iutils.function.checked.function.EFunction;
 import com.github.jonathanxd.iutils.map.MapUtils;
 
 import org.jetbrains.annotations.NotNull;
@@ -65,10 +70,26 @@ import kotlin.Unit;
 
 public class AnnotationUnificationlTest {
 
+    private static final String json = "{\n" +
+            "  \"names\": [\n" +
+            "    {\"value\": \"a\"},\n" +
+            "    {\"value\": \"b\"}\n" +
+            "  ],\n" +
+            "  \"name\": {\"value\": \"a\"},\n" +
+            "  \"entryTypes\": [\"REGISTER\", \"LOG\"],\n" +
+            "  \"ids\": [0,1,2],\n" +
+            "  \"flag\": 0,\n" +
+            "  \"types\": [\"java.lang.String\", \"java.lang.CharSequence\"]\n" +
+            "}";
+
     @Entry(names = {@Name("a"), @Name("b")},
             name = @Name("a"),
             entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {String.class, CharSequence.class})
     public static final String a = "0";
+
+    private static Class<?> invoke(java.lang.reflect.Type codeType) {
+        return ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null;
+    }
 
     private void assertEq_(List<EnumValue> enumValues, List<EnumValue> to) {
         Assert.assertEquals(enumValues.size(), to.size());
@@ -118,7 +139,20 @@ public class AnnotationUnificationlTest {
         Annotation annotation = AnnotationUnificationlTest.class.getField("a").getDeclaredAnnotation(Entry.class);
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
-                codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null);
+                AnnotationUnificationlTest::invoke);
+
+        assert_(unifiedEntry, Types.STRING);
+    }
+
+    @Test
+    public void testJsonAnnotation() throws Exception {
+
+        EFunction<String, CodeType> f = s -> CodeTypes.getCodeType(Class.forName(s));
+
+        UnifiedEntry unifiedEntry = JsonAnnotationUnifierKt.unifyJson(json, Entry.class, UnifiedEntry.class,
+                new JavaAnnotationResolverFunc(AnnotationUnificationlTest::invoke,
+                        CodeTypeResolverFunc.Companion.fromJavaFunction(f),
+                        Entry.class.getClassLoader()));
 
         assert_(unifiedEntry, Types.STRING);
     }
@@ -161,7 +195,7 @@ public class AnnotationUnificationlTest {
                 .build();
 
         UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotation, UnifiedEntry.class,
-                codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null);
+                AnnotationUnificationlTest::invoke);
 
         assert_(unifiedEntry, Types.STRING);
     }
@@ -177,12 +211,10 @@ public class AnnotationUnificationlTest {
                         Collections3.listOf(TEST))
                 .processedWith(new AbstractProcessor() {
 
-                    ProcessingEnvironment processingEnvironment;
 
                     @Override
                     public synchronized void init(ProcessingEnvironment processingEnv) {
                         super.init(processingEnv);
-                        processingEnvironment = processingEnv;
                     }
 
                     @Override
@@ -200,7 +232,7 @@ public class AnnotationUnificationlTest {
 
                             UnifiedEntry unifiedEntry = AnnotationsKt.getUnificationInstance(annotationMirror, UnifiedEntry.class,
                                     codeType -> ImplicitCodeType.is(codeType, Name.class) ? UnifiedName.class : null,
-                                    processingEnvironment.getElementUtils());
+                                    this.processingEnv.getElementUtils());
 
 
                             String[] names = unifiedEntry.names().stream().map(UnifiedName::value).toArray(String[]::new);
@@ -209,6 +241,12 @@ public class AnnotationUnificationlTest {
 
                             assert_(unifiedEntry, new PlainCodeType("com.github.jonathanxd.codeapi.extra.test.Test"));
                         }
+
+                        UnifiedEntry unifiedEntry = JsonAnnotationUnifierKt.unifyJson(json, Entry.class, UnifiedEntry.class,
+                                new ModelAnnotationResolverFunc(AnnotationUnificationlTest::invoke,
+                                        this.processingEnv.getElementUtils()));
+
+                        assert_(unifiedEntry, Types.STRING);
 
                         return false;
                     }
