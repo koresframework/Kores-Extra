@@ -31,6 +31,7 @@ import com.github.jonathanxd.codeapi.base.Annotation
 import com.github.jonathanxd.codeapi.base.EnumValue
 import com.github.jonathanxd.codeapi.type.CodeTypeResolver
 import com.github.jonathanxd.codeapi.util.*
+import com.github.jonathanxd.jwiutils.kt.rightOrFail
 import org.json.simple.JSONArray
 import org.json.simple.JSONObject
 import org.json.simple.parser.JSONParser
