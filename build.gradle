@@ -18,7 +18,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '1.1.4-SNAPSHOT'
+version '1.1.5-SNAPSHOT'
 
 // IDE
 apply plugin: 'idea'
@@ -49,7 +49,7 @@ dependencies {
     compile "com.googlecode.json-simple:json-simple:1.1.1"
 
     // Utilities
-    compile 'com.github.JonathanxD:CodeAPI:alpha-4.0.0-base-24'
+    compile 'com.github.JonathanxD:CodeAPI:alpha-4.0.0-base-25'
     compile 'com.github.JonathanxD:JwIUtils:4.7.7'
 
     testCompile "com.google.testing.compile:compile-testing:0.8"
