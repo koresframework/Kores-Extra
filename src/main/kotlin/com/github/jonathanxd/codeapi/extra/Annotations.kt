@@ -392,18 +392,33 @@ class ProxyInvocationHandler(val original: Any?,
                              val unificationInterface: Class<*>,
                              val unifiedAnnotationData: UnifiedAnnotationData) : InvocationHandler {
 
+    private val nameMappings = mutableMapOf<String, String>()
+
+    init {
+        unificationInterface.methods.forEach { method ->
+            method.getDeclaredAnnotation(Alias::class.java)?.value?.also { alias ->
+                nameMappings[method.name] = alias
+            }
+            Unit
+        }
+    }
+
     override fun invoke(proxy: Any?, method: Method, args: Array<out Any>?): Any? {
-        if (method.name == "annotationType")
+        val mname_ = method.name
+
+        val name = if (nameMappings.containsKey(mname_)) nameMappings[mname_]!! else mname_
+
+        if (name == "annotationType")
             return unifiedAnnotationData.type
 
         if (proxy is UnifiedAnnotation) {
-            if (method.name == "getUnifiedAnnotationData")
+            if (name == "getUnifiedAnnotationData")
                 return getDataOfAnnotation(proxy)
         }
 
-        if (unifiedAnnotationData.values.containsKey(method.name)) {
+        if (unifiedAnnotationData.values.containsKey(name)) {
 
-            val value = unifiedAnnotationData.values[method.name]
+            val value = unifiedAnnotationData.values[name]
 
             if (value != null && value::class.java.isArray && method.returnType.isArray) {
                 if (java.lang.reflect.Array.getLength(value) == 0)
