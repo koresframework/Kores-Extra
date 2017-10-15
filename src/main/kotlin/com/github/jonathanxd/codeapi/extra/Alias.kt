@@ -54,5 +54,5 @@ package com.github.jonathanxd.codeapi.extra
  * (and setters if property is mutable, but this is irrelevant for unification).
  */
 @Retention(AnnotationRetention.RUNTIME)
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER)
 annotation class Alias(val value: String)
