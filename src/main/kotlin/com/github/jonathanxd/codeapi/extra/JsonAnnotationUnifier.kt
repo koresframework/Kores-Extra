@@ -202,7 +202,7 @@ class ModelAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Cla
     override fun invoke(annotationType: Type, name: String): UnificationStrategy? {
         val cType = annotationType.arrayBaseComponent.concreteType
 
-        val resolvedType = this.mResolver.resolve(cType).rightOrFail!!
+        val resolvedType = this.mResolver.resolve(cType).rightOrFail
 
         try {
             val elems = resolvedType.enclosedElements.filterIsInstance<ExecutableElement>()
