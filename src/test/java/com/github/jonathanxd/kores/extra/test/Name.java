@@ -1,9 +1,9 @@
 /*
- *      CodeAPI-Extra - CodeAPI Extras
+ *      Kores-Extra - Kores Extras
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 JonathanxD <https://github.com/JonathanxD/CodeAPI-Extra>
+ *      Copyright (c) 2018 JonathanxD <https://github.com/JonathanxD/Kores-Extra>
  *      Copyright (c) contributors
  *
  *
@@ -25,46 +25,21 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.codeapi.extra.test;
-
-import com.github.jonathanxd.codeapi.extra.Alias;
-import com.github.jonathanxd.codeapi.extra.AnnotationsKt;
-
-import org.junit.Assert;
-import org.junit.Test;
+package com.github.jonathanxd.kores.extra.test;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-public class AliasUnificationTest {
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.ANNOTATION_TYPE, ElementType.CONSTRUCTOR, ElementType.FIELD,
+        ElementType.LOCAL_VARIABLE, ElementType.METHOD, ElementType.PACKAGE,
+        ElementType.PARAMETER, ElementType.TYPE, ElementType.TYPE_PARAMETER,
+        ElementType.TYPE_USE})
+public @interface Name {
 
-    @Person(name = "Ajksa", age = 25)
-    private final Object o = null;
-
-    @Test
-    public void test() throws NoSuchFieldException {
-        Person o = AliasUnificationTest.class.getDeclaredField("o").getAnnotation(Person.class);
-
-        UnifiedPerson unificationInstance = AnnotationsKt.getUnificationInstance(o, UnifiedPerson.class);
-
-        Assert.assertEquals("Ajksa", unificationInstance.getName());
-        Assert.assertEquals(25, unificationInstance.getAge());
-    }
-
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
-    public @interface Person {
-        String name();
-        int age();
-    }
-
-    public interface UnifiedPerson {
-        @Alias("name")
-        String getName();
-        @Alias("age")
-        int getAge();
-    }
+    String value();
 
 }
+

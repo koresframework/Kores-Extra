@@ -1,9 +1,9 @@
 /*
- *      CodeAPI-Extra - CodeAPI Extras
+ *      Kores-Extra - Kores Extras
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 JonathanxD <https://github.com/JonathanxD/CodeAPI-Extra>
+ *      Copyright (c) 2018 JonathanxD <https://github.com/JonathanxD/Kores-Extra>
  *      Copyright (c) contributors
  *
  *
@@ -25,31 +25,9 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.codeapi.extra.test;
+package com.github.jonathanxd.kores.extra.test;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.ANNOTATION_TYPE, ElementType.CONSTRUCTOR, ElementType.FIELD,
-        ElementType.LOCAL_VARIABLE, ElementType.METHOD, ElementType.PACKAGE,
-        ElementType.PARAMETER, ElementType.TYPE, ElementType.TYPE_PARAMETER,
-        ElementType.TYPE_USE})
-public @interface Entry {
-
-    Class<?>[] types();
-
-    Type[] entryTypes();
-
-    Name name() default @Name("a");
-
-    Name[] names() default @Name("");
-
-    int[] ids();
-
-    int flag();
-
+public enum Type {
+    REGISTER,
+    LOG
 }
-

@@ -1,9 +1,9 @@
 /*
- *      CodeAPI-Extra - CodeAPI Extras
+ *      Kores-Extra - Kores Extras
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 JonathanxD <https://github.com/JonathanxD/CodeAPI-Extra>
+ *      Copyright (c) 2018 JonathanxD <https://github.com/JonathanxD/Kores-Extra>
  *      Copyright (c) contributors
  *
  *
@@ -25,7 +25,7 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.codeapi.extra;
+package com.github.jonathanxd.kores.extra;
 
 public class JEnum {
 

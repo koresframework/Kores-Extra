@@ -1,9 +1,9 @@
 /*
- *      CodeAPI-Extra - CodeAPI Extras
+ *      Kores-Extra - Kores Extras
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 JonathanxD <https://github.com/JonathanxD/CodeAPI-Extra>
+ *      Copyright (c) 2018 JonathanxD <https://github.com/JonathanxD/Kores-Extra>
  *      Copyright (c) contributors
  *
  *
@@ -25,9 +25,25 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.codeapi.extra.test;
+package com.github.jonathanxd.kores.extra
 
-public enum Type {
-    REGISTER,
-    LOG
+import com.github.jonathanxd.kores.type.KoresType
+
+/**
+ * Unified annotation base interface.
+ *
+ * **This interface is a trait**.
+ */
+interface UnifiedAnnotation {
+
+    /**
+     * Gets the annotation type of unified annotation.
+     */
+    fun annotationType(): KoresType
+
+    /**
+     * Gets the annotation data.
+     */
+    fun getUnifiedAnnotationData(): UnifiedAnnotationData
+
 }

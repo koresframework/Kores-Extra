@@ -1,9 +1,9 @@
 /*
- *      CodeAPI-Extra - CodeAPI Extras
+ *      Kores-Extra - Kores Extras
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 JonathanxD <https://github.com/JonathanxD/CodeAPI-Extra>
+ *      Copyright (c) 2018 JonathanxD <https://github.com/JonathanxD/Kores-Extra>
  *      Copyright (c) contributors
  *
  *
@@ -25,13 +25,14 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.codeapi.extra
+package com.github.jonathanxd.kores.extra
 
-import com.github.jonathanxd.codeapi.base.Annotation
-import com.github.jonathanxd.codeapi.base.EnumValue
-import com.github.jonathanxd.codeapi.type.CodeTypeResolver
-import com.github.jonathanxd.codeapi.util.*
-import com.github.jonathanxd.jwiutils.kt.rightOrFail
+import com.github.jonathanxd.kores.base.Annotation
+import com.github.jonathanxd.kores.base.EnumValue
+import com.github.jonathanxd.kores.util.*
+import com.github.jonathanxd.iutils.kt.rightOrFail
+import com.github.jonathanxd.kores.base.Retention
+import com.github.jonathanxd.kores.type.*
 import org.json.simple.JSONArray
 import org.json.simple.JSONObject
 import org.json.simple.parser.JSONParser
@@ -45,22 +46,36 @@ typealias TypeResolverFunc = (annotationType: Type, name: String) -> Unification
 fun <T : Any> unifyJson(jsonString: String,
                         baseAnnotationType: Type,
                         unificationInterface: Class<T>,
-                        typeResolver: TypeResolverFunc): T {
+                        typeResolver: TypeResolverFunc
+): T {
 
     val json = JSONParser().parse(jsonString) as JSONObject
 
-    return unifyJsonObj(json, baseAnnotationType, unificationInterface, typeResolver)
+    return unifyJsonObj(
+        json,
+        baseAnnotationType,
+        unificationInterface,
+        typeResolver
+    )
 }
 
 @Suppress("UNCHECKED_CAST")
 fun <T : Any> unifyJsonObj(jsonObject: JSONObject,
                            baseAnnotationType: Type,
                            unificationInterface: Class<T>,
-                           typeResolver: TypeResolverFunc): T {
+                           typeResolver: TypeResolverFunc
+): T {
 
     val annotation = jsonObject.fromJsonObjAnn(baseAnnotationType, typeResolver)
 
-    return createProxy(jsonObject, unificationInterface, UnifiedAnnotationData(annotation.type.codeType, annotation.values))
+    return createProxy(
+        jsonObject,
+        unificationInterface,
+        UnifiedAnnotationData(
+            annotation.type.koresType,
+            annotation.values
+        )
+    )
 }
 
 private fun JSONObject.fromJsonObjAnn(type: Type, typeResolver: TypeResolverFunc): Annotation {
@@ -70,12 +85,12 @@ private fun JSONObject.fromJsonObjAnn(type: Type, typeResolver: TypeResolverFunc
         val key = it.key as String
         val value = it.value as Any
 
-        map.put(key, fromJsonVal(type, key, value, typeResolver))
+        map[key] = fromJsonVal(type, key, value, typeResolver)
     }
 
     return Annotation.Builder.builder()
             .type(type)
-            .visible(true)
+            .retention(Retention.RUNTIME)
             .values(map)
             .build()
 }
@@ -85,7 +100,12 @@ private fun fromJsonObj(annotationType: Type, name: String, json: JSONObject, ty
 
     return when (resolved) {
         is AnnotationConstant -> json.fromJsonObjAnn(resolved.type, typeResolver)
-        is UnifyAnnotation -> unifyJsonObj(json, resolved.annotationType, resolved.unificationType, typeResolver)
+        is UnifyAnnotation -> unifyJsonObj(
+            json,
+            resolved.annotationType,
+            resolved.unificationType,
+            typeResolver
+        )
         else -> throw IllegalArgumentException("No value resolution provided for object: $json of key: $name")
     }
 
@@ -95,7 +115,12 @@ private fun fromResolved(annotationType: Type, strategy: UnificationStrategy, va
         when (strategy) {
             is EnumConstant -> EnumValue(strategy.type, value as String)
             is AnnotationConstant -> (value as JSONObject).fromJsonObjAnn(strategy.type, typeResolver)
-            is UnifyAnnotation -> unifyJsonObj(value as JSONObject, strategy.annotationType, strategy.unificationType, typeResolver)
+            is UnifyAnnotation -> unifyJsonObj(
+                value as JSONObject,
+                strategy.annotationType,
+                strategy.unificationType,
+                typeResolver
+            )
             is LiteralValue -> value.toConstValue(strategy.type)
             is Apply -> strategy(value)
         }
@@ -106,14 +131,39 @@ private fun fromJsonVal(annotationType: Type, key: String, value: Any, typeResol
 
     return when (value) {
         is String, is Double, is Float, is Number,
-        is Boolean -> if (resolved != null) fromResolved(annotationType, resolved, value, typeResolver) else value
+        is Boolean -> if (resolved != null) fromResolved(
+            annotationType,
+            resolved,
+            value,
+            typeResolver
+        ) else value
         is JSONArray -> value.map {
-            if (resolved != null) fromResolved(annotationType, resolved, it as Any, typeResolver)
-            else fromJsonVal(annotationType, key, it as Any, typeResolver)
+            if (resolved != null) fromResolved(
+                annotationType,
+                resolved,
+                it as Any,
+                typeResolver
+            )
+            else fromJsonVal(
+                annotationType,
+                key,
+                it as Any,
+                typeResolver
+            )
         }
         is JSONObject -> {
-            if (resolved != null) fromResolved(annotationType, resolved, value, typeResolver)
-            else fromJsonObj(annotationType, key, value, typeResolver)
+            if (resolved != null) fromResolved(
+                annotationType,
+                resolved,
+                value,
+                typeResolver
+            )
+            else fromJsonObj(
+                annotationType,
+                key,
+                value,
+                typeResolver
+            )
         }
     /*is Map<*, *> -> value.map { (ka, va) ->
         ka as String
@@ -154,10 +204,11 @@ enum class LiteralType(val type: Class<*>, val converter: (Any) -> Any) {
 }
 
 class JavaAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Class<*>? = { null },
-                                 val codeTypeResolverFunc: CodeTypeResolverFunc,
-                                 loader: ClassLoader?) : TypeResolverFunc {
+                                 val koresTypeResolverFunc: KoresTypeResolverFunc,
+                                 loader: ClassLoader?) :
+    TypeResolverFunc {
 
-    val jResolver = CodeTypeResolver.Java(loader ?: ClassLoader.getSystemClassLoader())
+    val jResolver = KoresTypeResolver.Java(loader ?: ClassLoader.getSystemClassLoader())
 
     override fun invoke(annotationType: Type, name: String): UnificationStrategy? {
         val cType = (if(annotationType.isArray) annotationType.arrayBaseComponent else annotationType).concreteType
@@ -170,7 +221,12 @@ class JavaAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Clas
 
             if (rType.isAnnotation) {
 
-                return additionalUnificationGetter(rType)?.let { UnifyAnnotation(rType, it) }
+                return additionalUnificationGetter(rType)?.let {
+                    UnifyAnnotation(
+                        rType,
+                        it
+                    )
+                }
                         ?: AnnotationConstant(rType)
             }
 
@@ -179,7 +235,7 @@ class JavaAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Clas
             }
 
             if (rType.`is`(Class::class.java)) {
-                return Apply { codeTypeResolverFunc(it.toString()) }
+                return Apply { koresTypeResolverFunc(it.toString()) }
             }
 
             LiteralType.values().firstOrNull { it.type == rType }?.let {
@@ -195,9 +251,10 @@ class JavaAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Clas
 }
 
 class ModelAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Class<*>? = { null },
-                                  val elements: Elements) : TypeResolverFunc {
+                                  val elements: Elements) :
+    TypeResolverFunc {
 
-    val mResolver = CodeTypeResolver.Model(elements)
+    val mResolver = KoresTypeResolver.Model(elements)
 
     override fun invoke(annotationType: Type, name: String): UnificationStrategy? {
         val cType = annotationType.arrayBaseComponent.concreteType
@@ -208,7 +265,7 @@ class ModelAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Cla
             val elems = resolvedType.enclosedElements.filterIsInstance<ExecutableElement>()
 
             val prop = elems.first { it.simpleName.contentEquals(name) }
-            val rType = prop.returnType.getCodeType(elements).arrayBaseComponent
+            val rType = prop.returnType.getKoresType(elements).arrayBaseComponent
 
             val isAnnotation = this.mResolver
                     .isAssignableFrom(kotlin.Annotation::class.java, rType, {mResolver}).rightOrFail
@@ -217,7 +274,12 @@ class ModelAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Cla
                     .isAssignableFrom(kotlin.Enum::class.java, rType, {mResolver}).rightOrFail
 
             if (isAnnotation) {
-                return additionalUnificationGetter(rType)?.let { UnifyAnnotation(rType, it) }
+                return additionalUnificationGetter(rType)?.let {
+                    UnifyAnnotation(
+                        rType,
+                        it
+                    )
+                }
                         ?: AnnotationConstant(rType)
             }
 
@@ -226,7 +288,9 @@ class ModelAnnotationResolverFunc(val additionalUnificationGetter: (Type) -> Cla
             }
 
             if (rType.`is`(Class::class.java)) {
-                return Apply { elements.getTypeElement(it.toString()).getCodeType(elements) }
+                return Apply {
+                    elements.getTypeElement(it.toString()).getKoresType(elements)
+                }
             }
 
             LiteralType.values().firstOrNull { it.type.`is`(rType) }?.let {

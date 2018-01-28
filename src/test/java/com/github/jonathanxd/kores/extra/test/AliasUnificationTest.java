@@ -27,13 +27,44 @@
  */
 package com.github.jonathanxd.kores.extra.test;
 
-import com.github.jonathanxd.kores.extra.test.Entry;
-import com.github.jonathanxd.kores.extra.test.Name;
-import com.github.jonathanxd.kores.extra.test.Type;
+import com.github.jonathanxd.kores.extra.Alias;
+import com.github.jonathanxd.kores.extra.AnnotationsKt;
 
-public class Test {
+import org.junit.Assert;
+import org.junit.Test;
 
-    @Entry(names = {@Name("a"), @Name("b")}, entryTypes = {Type.REGISTER, Type.LOG}, ids = {0, 1, 2}, flag = 0, types = {Test.class, CharSequence.class})
-    public static final String a = "0";
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+public class AliasUnificationTest {
+
+    @Person(name = "Ajksa", age = 25)
+    private final Object o = null;
+
+    @Test
+    public void test() throws NoSuchFieldException {
+        Person o = AliasUnificationTest.class.getDeclaredField("o").getAnnotation(Person.class);
+
+        UnifiedPerson unificationInstance = AnnotationsKt.getUnificationInstance(o, UnifiedPerson.class);
+
+        Assert.assertEquals("Ajksa", unificationInstance.getName());
+        Assert.assertEquals(25, unificationInstance.getAge());
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface Person {
+        String name();
+        int age();
+    }
+
+    public interface UnifiedPerson {
+        @Alias("name")
+        String getName();
+        @Alias("age")
+        int getAge();
+    }
 
 }
