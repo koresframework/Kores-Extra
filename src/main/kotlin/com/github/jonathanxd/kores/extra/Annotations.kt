@@ -489,6 +489,8 @@ class ProxyInvocationHandler(
         if (proxy is UnifiedAnnotation) {
             if (name == "getUnifiedAnnotationData")
                 return getDataOfAnnotation(proxy)
+            if (name == "getUnifiedAnnotationOrigin")
+                return original ?: Unit
         }
 
         if (unifiedAnnotationData.values.containsKey(name)) {

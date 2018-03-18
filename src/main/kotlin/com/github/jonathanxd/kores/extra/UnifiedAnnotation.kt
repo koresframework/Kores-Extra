@@ -46,4 +46,8 @@ interface UnifiedAnnotation {
      */
     fun getUnifiedAnnotationData(): UnifiedAnnotationData
 
+    /**
+     * Returns the element that originated this annotation. (may be [Unit])
+     */
+    fun getUnifiedAnnotationOrigin(): Any
 }
