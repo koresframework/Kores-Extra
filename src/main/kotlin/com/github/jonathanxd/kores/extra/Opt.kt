@@ -1,10 +1,18 @@
 package com.github.jonathanxd.kores.extra
 
 import com.github.jonathanxd.iutils.`object`.Default
+import com.github.jonathanxd.iutils.`object`.Lazy
+import com.github.jonathanxd.iutils.kt.*
+import com.github.jonathanxd.iutils.opt.OptLazy
+import com.github.jonathanxd.iutils.opt.OptObject
+import com.github.jonathanxd.iutils.opt.specialized.*
 import com.github.jonathanxd.iutils.reflection.Reflection
 import com.github.jonathanxd.kores.type.`is`
+import com.github.jonathanxd.kores.type.concreteType
 import com.github.jonathanxd.kores.type.typeOf
+import java.lang.reflect.Method
 import java.lang.reflect.Type
+import java.util.*
 import kotlin.reflect.KClass
 
 /**
@@ -70,3 +78,68 @@ object EmptyOrDefaultListTypeCheck : (Any) -> Boolean {
     override fun invoke(p1: Any): Boolean =
         (p1 as? List<Any>)?.let { it.isEmpty() || DefaultListTypeCheck(it) } == true
 }
+
+/**
+ * Validates [Opt] in [Method]
+ */
+fun Method.validateOpt() =
+    if (this.isAnnotationPresent(classOf<Opt>()) && !this.returnType.isValidOpt())
+        throw IllegalStateException("The return type of method '$this' annotated with 'Opt' must be an 'Optional'.")
+    else Unit
+
+fun Type.isValidOpt(): Boolean =
+    this.apply { this.concreteType }.run {
+        this.`is`(typeOf<Optional<*>>())
+                || this.`is`(typeOf<OptionalInt>())
+                || this.`is`(typeOf<OptionalDouble>())
+                || this.`is`(typeOf<OptLazy<*>>())
+                || this.`is`(typeOf<OptObject<*>>())
+                || this.`is`(typeOf<OptShort>())
+                || this.`is`(typeOf<OptByte>())
+                || this.`is`(typeOf<OptChar>())
+                || this.`is`(typeOf<OptInt>())
+                || this.`is`(typeOf<OptBoolean>())
+                || this.`is`(typeOf<OptFloat>())
+                || this.`is`(typeOf<OptDouble>())
+                || this.`is`(typeOf<OptLong>())
+    }
+
+fun Type.createSomeOpt(value: Any): Any =
+    this.apply { this.concreteType }.run {
+        when {
+            this.`is`(typeOf<Optional<*>>()) -> Optional.of(value)
+            this.`is`(typeOf<OptionalInt>()) -> OptionalInt.of(value as Int)
+            this.`is`(typeOf<OptionalDouble>()) -> OptionalDouble.of(value as Double)
+            this.`is`(typeOf<OptLazy<*>>()) -> someLazy(Lazy.evaluated(value))
+            this.`is`(typeOf<OptObject<*>>()) -> some(value)
+            this.`is`(typeOf<OptShort>()) -> someShort(value as Short)
+            this.`is`(typeOf<OptByte>()) -> someByte(value as Byte)
+            this.`is`(typeOf<OptChar>()) -> someChar(value as Char)
+            this.`is`(typeOf<OptInt>()) -> someInt(value as Int)
+            this.`is`(typeOf<OptBoolean>()) -> someBoolean(value as Boolean)
+            this.`is`(typeOf<OptFloat>()) -> someFloat(value as Float)
+            this.`is`(typeOf<OptDouble>()) -> someDouble(value as Double)
+            this.`is`(typeOf<OptLong>()) -> someLong(value as Long)
+            else -> value
+        }
+    }
+
+fun Type.createNoneOpt(): Any =
+    this.apply { this.concreteType }.run {
+        when {
+            this.`is`(typeOf<Optional<*>>()) -> Optional.empty<Any>()
+            this.`is`(typeOf<OptionalInt>()) -> OptionalInt.empty()
+            this.`is`(typeOf<OptionalDouble>()) -> OptionalDouble.empty()
+            this.`is`(typeOf<OptLazy<*>>()) -> noneLazy<Any>()
+            this.`is`(typeOf<OptObject<*>>()) -> none<Any>()
+            this.`is`(typeOf<OptShort>()) -> noneShort()
+            this.`is`(typeOf<OptByte>()) -> noneByte()
+            this.`is`(typeOf<OptChar>()) -> noneChar()
+            this.`is`(typeOf<OptInt>()) -> noneInt()
+            this.`is`(typeOf<OptBoolean>()) -> noneBoolean()
+            this.`is`(typeOf<OptFloat>()) -> noneFloat()
+            this.`is`(typeOf<OptDouble>()) -> noneDouble()
+            this.`is`(typeOf<OptLong>()) -> noneLong()
+            else -> none<Any>()
+        }
+    }

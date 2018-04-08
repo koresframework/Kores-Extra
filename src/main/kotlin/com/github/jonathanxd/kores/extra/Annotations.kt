@@ -471,12 +471,11 @@ class ProxyInvocationHandler(
     init {
         unificationInterface.methods.forEach { method ->
             val name = method.getDeclaredAnnotation(classOf<Alias>())?.value ?: method.name
-            val checker = method.getDeclaredAnnotation(classOf<Opt>())?.checker
+            val checker = method.getDeclaredAnnotation(classOf<Opt>())?.checker?.let {
+                OptSpec(it, method.returnType)
+            }
 
-            if (method.isAnnotationPresent(classOf<Opt>())
-                    && !method.returnType.`is`(classOf<Optional<*>>())
-            )
-                throw IllegalStateException("The return type of a method annotated with 'Opt' must be an 'Optional'.")
+            method.validateOpt()
 
             specMappings[method.name] = UniSpec(name, checker)
         }
@@ -523,9 +522,9 @@ class ProxyInvocationHandler(
 
             return ret.let { retValue ->
                 when {
-                    spec.checker != null -> {
-                        if (spec.checker.invoke(retValue)) Optional.empty()
-                        else Optional.of(retValue)
+                    spec.optSpec != null -> {
+                        if (spec.optSpec.checker.invoke(retValue)) spec.optSpec.createNone()
+                        else spec.optSpec.createSome(retValue)
                     }
                     else -> retValue
                 }
@@ -547,6 +546,11 @@ class ProxyInvocationHandler(
         (this as? Type)?.canonicalName ?: this.toString()
 }
 
-data class UniSpec(val name: String, val checker: ((Any) -> Boolean)?)
+data class OptSpec(val checker: (Any) -> Boolean, val optType: Type) {
+    fun createNone() = optType.createNoneOpt()
+    fun createSome(value: Any) = optType.createSomeOpt(value)
+}
+
+data class UniSpec(val name: String, val optSpec: OptSpec?)
 
 fun UniSpec?.orDefault(name: String) = this ?: UniSpec(name, null)

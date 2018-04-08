@@ -28,9 +28,11 @@
 package com.github.jonathanxd.kores.extra.test;
 
 import com.github.jonathanxd.iutils.object.Default;
+import com.github.jonathanxd.iutils.opt.OptObject;
 import com.github.jonathanxd.kores.extra.Alias;
 import com.github.jonathanxd.kores.extra.AnnotationsKt;
 import com.github.jonathanxd.kores.extra.Opt;
+import com.github.jonathanxd.kores.type.ImplicitKoresType;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -57,6 +59,7 @@ public class AliasUnificationTest {
         Assert.assertEquals("Ajksa", unificationInstance.getName());
         Assert.assertEquals(25, unificationInstance.getAge());
         Assert.assertFalse(unificationInstance.getType().isPresent());
+        Assert.assertFalse(unificationInstance.getType2().isPresent());
     }
 
     @Test
@@ -68,6 +71,12 @@ public class AliasUnificationTest {
         Assert.assertEquals("Ajksa", unificationInstance.getName());
         Assert.assertEquals(25, unificationInstance.getAge());
         Assert.assertTrue(unificationInstance.getType().isPresent());
+        Assert.assertTrue(unificationInstance.getType2().isPresent());
+        Assert.assertEquals(ImplicitKoresType.getIdentification(String.class),
+                ImplicitKoresType.getIdentification(unificationInstance.getType().get()));
+
+        Assert.assertEquals(ImplicitKoresType.getIdentification(String.class),
+                ImplicitKoresType.getIdentification(unificationInstance.getType2().getValue()));
     }
 
     @Retention(RetentionPolicy.RUNTIME)
@@ -88,6 +97,10 @@ public class AliasUnificationTest {
         @Alias("type")
         @Opt
         Optional<Class<?>> getType();
+
+        @Alias("type")
+        @Opt
+        OptObject<Class<?>> getType2();
     }
 
 }
