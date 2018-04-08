@@ -28,11 +28,10 @@
 package com.github.jonathanxd.kores.extra
 
 import com.github.jonathanxd.iutils.array.ArrayUtils
+import com.github.jonathanxd.iutils.kt.classOf
 import com.github.jonathanxd.kores.base.Annotation
 import com.github.jonathanxd.kores.base.EnumValue
-import com.github.jonathanxd.kores.type.KoresType
-import com.github.jonathanxd.kores.type.koresType
-import com.github.jonathanxd.kores.type.toKoresType
+import com.github.jonathanxd.kores.type.*
 import java.lang.reflect.*
 import java.lang.reflect.Modifier
 import java.util.*
@@ -467,21 +466,25 @@ class ProxyInvocationHandler(
     val unifiedAnnotationData: UnifiedAnnotationData
 ) : InvocationHandler {
 
-    private val nameMappings = mutableMapOf<String, String>()
+    private val specMappings = mutableMapOf<String, UniSpec>()
 
     init {
         unificationInterface.methods.forEach { method ->
-            method.getDeclaredAnnotation(Alias::class.java)?.value?.also { alias ->
-                nameMappings[method.name] = alias
-            }
-            Unit
+            val name = method.getDeclaredAnnotation(classOf<Alias>())?.value ?: method.name
+            val checker = method.getDeclaredAnnotation(classOf<Opt>())?.checker
+
+            if (method.isAnnotationPresent(classOf<Opt>())
+                    && !method.returnType.`is`(classOf<Optional<*>>())
+            )
+                throw IllegalStateException("The return type of a method annotated with 'Opt' must be an 'Optional'.")
+
+            specMappings[method.name] = UniSpec(name, checker)
         }
     }
 
     override fun invoke(proxy: Any?, method: Method, args: Array<out Any>?): Any? {
-        val mname_ = method.name
-
-        val name = if (nameMappings.containsKey(mname_)) nameMappings[mname_]!! else mname_
+        val spec = specMappings[method.name].orDefault(method.name)
+        val name = spec.name
 
         if (name == "annotationType")
             return unifiedAnnotationData.type
@@ -497,27 +500,36 @@ class ProxyInvocationHandler(
 
             val value = unifiedAnnotationData.values[name]
 
-            if (value != null && value::class.java.isArray && method.returnType.isArray) {
-                if (java.lang.reflect.Array.getLength(value) == 0)
-                    return java.lang.reflect.Array.newInstance(method.returnType.componentType, 0)
+            val ret = if (value != null && value::class.java.isArray && method.returnType.isArray) {
+                if (java.lang.reflect.Array.getLength(value) == 0) {
+                    java.lang.reflect.Array.newInstance(method.returnType.componentType, 0)
+                } else {
 
-                val oldArray = ArrayUtils.toObjectArray(value)
+                    val oldArray = ArrayUtils.toObjectArray(value)
 
-                val array = method.returnType
-                val componentType = array.componentType
+                    val array = method.returnType
+                    val componentType = array.componentType
 
-                val newArray = java.lang.reflect.Array.newInstance(componentType, oldArray.size)
+                    val newArray = java.lang.reflect.Array.newInstance(componentType, oldArray.size)
 
-                oldArray.forEachIndexed { index, arg ->
-                    java.lang.reflect.Array.set(newArray, index, arg)
+                    oldArray.forEachIndexed { index, arg ->
+                        java.lang.reflect.Array.set(newArray, index, arg)
+                    }
+
+                    newArray
                 }
-
-                return newArray
-            }
-
-            return value
+            } else value
                     ?: throw NullPointerException("Annotation properties should not return null! (at: $method)")
 
+            return ret.let { retValue ->
+                when {
+                    spec.checker != null -> {
+                        if (spec.checker.invoke(retValue)) Optional.empty()
+                        else Optional.of(retValue)
+                    }
+                    else -> retValue
+                }
+            }
         }
 
 
@@ -531,4 +543,10 @@ class ProxyInvocationHandler(
         }
     }
 
+    private fun Any.toOptString() =
+        (this as? Type)?.canonicalName ?: this.toString()
 }
+
+data class UniSpec(val name: String, val checker: ((Any) -> Boolean)?)
+
+fun UniSpec?.orDefault(name: String) = this ?: UniSpec(name, null)

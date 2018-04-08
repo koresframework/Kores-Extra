@@ -27,8 +27,10 @@
  */
 package com.github.jonathanxd.kores.extra.test;
 
+import com.github.jonathanxd.iutils.object.Default;
 import com.github.jonathanxd.kores.extra.Alias;
 import com.github.jonathanxd.kores.extra.AnnotationsKt;
+import com.github.jonathanxd.kores.extra.Opt;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,11 +39,14 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Optional;
 
 public class AliasUnificationTest {
 
     @Person(name = "Ajksa", age = 25)
     private final Object o = null;
+    @Person(name = "Ajksa", age = 25, type = String.class)
+    private final Object o2 = null;
 
     @Test
     public void test() throws NoSuchFieldException {
@@ -51,6 +56,18 @@ public class AliasUnificationTest {
 
         Assert.assertEquals("Ajksa", unificationInstance.getName());
         Assert.assertEquals(25, unificationInstance.getAge());
+        Assert.assertFalse(unificationInstance.getType().isPresent());
+    }
+
+    @Test
+    public void testPresent() throws NoSuchFieldException {
+        Person o = AliasUnificationTest.class.getDeclaredField("o2").getAnnotation(Person.class);
+
+        UnifiedPerson unificationInstance = AnnotationsKt.getUnificationInstance(o, UnifiedPerson.class);
+
+        Assert.assertEquals("Ajksa", unificationInstance.getName());
+        Assert.assertEquals(25, unificationInstance.getAge());
+        Assert.assertTrue(unificationInstance.getType().isPresent());
     }
 
     @Retention(RetentionPolicy.RUNTIME)
@@ -58,13 +75,19 @@ public class AliasUnificationTest {
     public @interface Person {
         String name();
         int age();
+        Class<?> type() default Default.class;
     }
 
     public interface UnifiedPerson {
         @Alias("name")
         String getName();
+
         @Alias("age")
         int getAge();
+
+        @Alias("type")
+        @Opt
+        Optional<Class<?>> getType();
     }
 
 }
