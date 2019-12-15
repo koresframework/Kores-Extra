@@ -83,7 +83,9 @@ shadowJar {
 dokka {
     outputFormat = 'javadoc'
     outputDirectory = javadoc.destinationDir
-    includes = ['src/main/Module.md']
+    configuration {
+        includes = ['src/main/Module.md']
+    }
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
