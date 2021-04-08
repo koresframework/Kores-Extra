@@ -19,7 +19,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '1.4.2-SNAPSHOT'
+version '1.4.4-SNAPSHOT'
 
 // IDE
 apply plugin: 'idea'
