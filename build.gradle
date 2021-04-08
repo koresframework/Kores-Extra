@@ -39,6 +39,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 sourceCompatibility = 1.8
 
 repositories {
+    jcenter()
     mavenCentral()
     maven { url 'https://dl.bintray.com/kotlin/dokka' }
     maven { url "https://jitpack.io" }
@@ -82,7 +83,7 @@ shadowJar {
     classifier = 'shaded'
 }
 
-tasks.dokkaGfm.configure {
+tasks.dokkaJekyll.configure {
     enabled = true
     outputDirectory = rootDir.toPath().resolve("docs").toFile()
 
@@ -98,7 +99,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
     from sourceSets.main.allSource
 }
 
-task javadocJar(type: Jar, dependsOn: dokkaGfm) {
+task javadocJar(type: Jar, dependsOn: dokkaJekyll) {
     classifier = 'javadoc'
     from javadoc.destinationDir
 }
