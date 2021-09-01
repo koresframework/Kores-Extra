@@ -25,11 +25,11 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra.test;
+package com.koresframework.kores.extra.test;
 
-import com.github.jonathanxd.kores.extra.test.Entry;
-import com.github.jonathanxd.kores.extra.test.Name;
-import com.github.jonathanxd.kores.extra.test.Type;
+import com.koresframework.kores.extra.test.Entry;
+import com.koresframework.kores.extra.test.Name;
+import com.koresframework.kores.extra.test.Type;
 
 public class Test {
 

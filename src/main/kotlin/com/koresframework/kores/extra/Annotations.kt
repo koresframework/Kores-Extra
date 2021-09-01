@@ -25,13 +25,16 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra
+package com.koresframework.kores.extra
 
 import com.github.jonathanxd.iutils.array.ArrayUtils
 import com.github.jonathanxd.iutils.kt.classOf
-import com.github.jonathanxd.kores.base.Annotation
-import com.github.jonathanxd.kores.base.EnumValue
-import com.github.jonathanxd.kores.type.*
+import com.koresframework.kores.base.EnumValue
+import com.koresframework.kores.type.koresType
+import com.koresframework.kores.type.toKoresType
+import com.koresframework.kores.base.Annotation
+import com.koresframework.kores.type.KoresType
+import com.koresframework.kores.type.canonicalName
 import java.lang.reflect.*
 import java.lang.reflect.Modifier
 import java.util.*
@@ -229,14 +232,11 @@ private fun AnnotationMirror.toUnified(
 
             val annotationValue = this.elementValues[it] ?: it.defaultValue
 
-            properties.put(
-                name,
-                annotationValue.toKoresAnnotationValue(
-                    it,
-                    it.returnType,
-                    additionalUnificationGetter,
-                    elements
-                )
+            properties[name] = annotationValue.toKoresAnnotationValue(
+                it,
+                it.returnType,
+                additionalUnificationGetter,
+                elements
             )
         }
 

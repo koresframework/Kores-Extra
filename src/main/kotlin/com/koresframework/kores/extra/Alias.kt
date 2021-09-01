@@ -25,29 +25,34 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra
-
-import com.github.jonathanxd.kores.type.KoresType
+package com.koresframework.kores.extra
 
 /**
- * Unified annotation base interface.
+ * Defines the alias of the method. This alias is the name of the method in the annotations to unify. This allows
+ * more conventional names for interface methods rather than naming conventions used in annotations, so instead
+ * of naming a method in this way: `age`, you can name it as `getAge` and add [Alias] annotation with `age` value.
  *
- * **This interface is a trait**.
+ * Example:
+ *
+ * Annotation:
+ * ```
+ * annotation class Person(val name: String, val age: Int)
+ * ```
+ *
+ * Unification interface:
+ *
+ * ```
+ * interface UnifiedPerson {
+ *     @Alias("name")
+ *     fun getName(): String
+ *     @Alias("age")
+ *     fun getAge(): Int
+ * }
+ * ```
+ *
+ * We can also use Kotlin properties, but alias still required because Kotlin properties are compiled to getters methods
+ * (and setters if property is mutable, but this is irrelevant for unification).
  */
-interface UnifiedAnnotation {
-
-    /**
-     * Gets the annotation type of unified annotation.
-     */
-    fun annotationType(): KoresType
-
-    /**
-     * Gets the annotation data.
-     */
-    fun getUnifiedAnnotationData(): UnifiedAnnotationData
-
-    /**
-     * Returns the element that originated this annotation. (may be [Unit])
-     */
-    fun getUnifiedAnnotationOrigin(): Any
-}
+@Retention(AnnotationRetention.RUNTIME)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER)
+annotation class Alias(val value: String)

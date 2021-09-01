@@ -25,14 +25,14 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra
+package com.koresframework.kores.extra
 
-import com.github.jonathanxd.kores.base.Annotation
-import com.github.jonathanxd.kores.base.EnumValue
-import com.github.jonathanxd.kores.util.*
+import com.koresframework.kores.base.Annotation
+import com.koresframework.kores.base.EnumValue
+import com.koresframework.kores.util.*
 import com.github.jonathanxd.iutils.kt.rightOrFail
-import com.github.jonathanxd.kores.base.Retention
-import com.github.jonathanxd.kores.type.*
+import com.koresframework.kores.base.Retention
+import com.koresframework.kores.type.*
 import org.json.simple.JSONArray
 import org.json.simple.JSONObject
 import org.json.simple.parser.JSONParser

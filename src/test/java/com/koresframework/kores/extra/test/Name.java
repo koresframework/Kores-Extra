@@ -25,24 +25,21 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra
+package com.koresframework.kores.extra.test;
 
-/**
- * Map unified annotation [T] value map and create a new instance of unified annotation of type [T]
- * with modified value map.
- */
-@Suppress("UNCHECKED_CAST")
-inline fun <T : Any> map(annotation: T,
-                         mapper: (MutableMap<String, Any>) -> Unit): T {
-    val handler = getHandlerOfAnnotation(annotation)
-    val unifiedAnnotationData = handler.unifiedAnnotationData
-    val map = HashMap(unifiedAnnotationData.values)
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    mapper(map)
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.ANNOTATION_TYPE, ElementType.CONSTRUCTOR, ElementType.FIELD,
+        ElementType.LOCAL_VARIABLE, ElementType.METHOD, ElementType.PACKAGE,
+        ElementType.PARAMETER, ElementType.TYPE, ElementType.TYPE_PARAMETER,
+        ElementType.TYPE_USE})
+public @interface Name {
 
-    return createProxy(
-        annotation, handler.unificationInterface as Class<T>,
-        UnifiedAnnotationData(unifiedAnnotationData.type, map)
-    )
+    String value();
+
 }
 

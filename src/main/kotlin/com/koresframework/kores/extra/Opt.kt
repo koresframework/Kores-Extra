@@ -25,7 +25,7 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra
+package com.koresframework.kores.extra
 
 import com.github.jonathanxd.iutils.`object`.Default
 import com.github.jonathanxd.iutils.`object`.Lazy
@@ -34,9 +34,9 @@ import com.github.jonathanxd.iutils.opt.OptLazy
 import com.github.jonathanxd.iutils.opt.OptObject
 import com.github.jonathanxd.iutils.opt.specialized.*
 import com.github.jonathanxd.iutils.reflection.Reflection
-import com.github.jonathanxd.kores.type.`is`
-import com.github.jonathanxd.kores.type.concreteType
-import com.github.jonathanxd.kores.type.typeOf
+import com.koresframework.kores.type.`is`
+import com.koresframework.kores.type.concreteType
+import com.koresframework.kores.type.typeOf
 import java.lang.reflect.Method
 import java.lang.reflect.Type
 import java.util.*

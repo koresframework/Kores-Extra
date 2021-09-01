@@ -25,9 +25,11 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra.test;
+package com.koresframework.kores.extra.test;
 
-import com.google.common.truth.FailureStrategy;
+import com.google.common.truth.*;
+import com.google.testing.compile.Compilation;
+import com.google.testing.compile.Compiler;
 import com.google.testing.compile.JavaFileObjects;
 import com.google.testing.compile.JavaSourcesSubjectFactory;
 
@@ -35,21 +37,14 @@ import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.container.primitivecontainers.IntContainer;
 import com.github.jonathanxd.iutils.function.checked.function.EFunction;
 import com.github.jonathanxd.iutils.map.MapUtils;
-import com.github.jonathanxd.kores.Types;
-import com.github.jonathanxd.kores.base.EnumValue;
-import com.github.jonathanxd.kores.extra.AnnotationsKt;
-import com.github.jonathanxd.kores.extra.JavaAnnotationResolverFunc;
-import com.github.jonathanxd.kores.extra.JsonAnnotationUnifierKt;
-import com.github.jonathanxd.kores.extra.ModelAnnotationResolverFunc;
-import com.github.jonathanxd.kores.extra.UnifiedAnnotation;
-import com.github.jonathanxd.kores.extra.UnifiedAnnotationsUtilKt;
-import com.github.jonathanxd.kores.type.ImplicitKoresType;
-import com.github.jonathanxd.kores.type.KoresType;
-import com.github.jonathanxd.kores.type.KoresTypes;
-import com.github.jonathanxd.kores.type.PlainKoresType;
-import com.github.jonathanxd.kores.util.KoresTypeResolverFunc;
+import com.koresframework.kores.Types;
+import com.koresframework.kores.base.EnumValue;
+import com.koresframework.kores.extra.*;
+import com.koresframework.kores.type.*;
+import com.koresframework.kores.util.KoresTypeResolverFunc;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -110,7 +105,8 @@ public class AnnotationUnificationlTest {
         Assert.assertArrayEquals(new String[]{"a", "b"}, names);
         Assert.assertEquals("a", unifiedEntry.name().value());
         Assert.assertEquals(Collections3.listOf(0, 1, 2), unifiedEntry.ids());
-        Assert.assertEquals(Collections3.listOf(type, KoresTypes.getKoresType(CharSequence.class)), unifiedEntry.types());
+        Assert.assertEquals(2, unifiedEntry.types().size());
+        Assert.assertTrue(KoresTypes.is(Collections3.listOf(type, KoresTypes.getKoresType(CharSequence.class)), unifiedEntry.types()));
         assertEq_(Collections3.listOf(
                 new EnumValue(TYPE_TYPE, "REGISTER"),
                 new EnumValue(TYPE_TYPE, "LOG")),
@@ -160,28 +156,28 @@ public class AnnotationUnificationlTest {
     public void testKoresAnnotation() throws Exception {
         KoresType TYPE_TYPE = KoresTypes.getKoresType(Type.class);
 
-        com.github.jonathanxd.kores.base.Annotation nameAnnotation = com.github.jonathanxd.kores.base.Annotation.Builder.builder()
+        com.koresframework.kores.base.Annotation nameAnnotation = com.koresframework.kores.base.Annotation.Builder.builder()
                 .type(KoresTypes.getKoresType(Name.class))
                 .values(MapUtils.mapOf(
                         "value", "a"
                 ))
                 .build();
 
-        com.github.jonathanxd.kores.base.Annotation nameAnnotationA = com.github.jonathanxd.kores.base.Annotation.Builder.builder()
+        com.koresframework.kores.base.Annotation nameAnnotationA = com.koresframework.kores.base.Annotation.Builder.builder()
                 .type(KoresTypes.getKoresType(Name.class))
                 .values(MapUtils.mapOf(
                         "value", "a"
                 ))
                 .build();
 
-        com.github.jonathanxd.kores.base.Annotation nameAnnotationB = com.github.jonathanxd.kores.base.Annotation.Builder.builder()
+        com.koresframework.kores.base.Annotation nameAnnotationB = com.koresframework.kores.base.Annotation.Builder.builder()
                 .type(KoresTypes.getKoresType(Name.class))
                 .values(MapUtils.mapOf(
                         "value", "b"
                 ))
                 .build();
 
-        com.github.jonathanxd.kores.base.Annotation annotation = com.github.jonathanxd.kores.base.Annotation.Builder.builder()
+        com.koresframework.kores.base.Annotation annotation = com.koresframework.kores.base.Annotation.Builder.builder()
                 .type(Entry.class)
                 .values(MapUtils.mapOf(
                         "names", Collections3.listOf(nameAnnotationA, nameAnnotationB),
@@ -204,11 +200,8 @@ public class AnnotationUnificationlTest {
 
         JavaFileObject TEST = JavaFileObjects.forResource("Test.java");
         IntContainer intContainer = new IntContainer();
-
-        JavaSourcesSubjectFactory.javaSources()
-                .getSubject(new Fail(),
-                        Collections3.listOf(TEST))
-                .processedWith(new AbstractProcessor() {
+        Compilation compile = Compiler.javac()
+                .withProcessors(new AbstractProcessor() {
 
 
                     @Override
@@ -238,7 +231,7 @@ public class AnnotationUnificationlTest {
 
                             Assert.assertArrayEquals(new String[]{"a", "b"}, names);
 
-                            assert_(unifiedEntry, new PlainKoresType("com.github.jonathanxd.kores.extra.test.Test"));
+                            assert_(unifiedEntry, new PlainKoresType("com.koresframework.kores.extra.test.Test"));
                         }
 
                         UnifiedEntry unifiedEntry = JsonAnnotationUnifierKt.unifyJson(json, Entry.class, UnifiedEntry.class,
@@ -252,7 +245,7 @@ public class AnnotationUnificationlTest {
 
                     @Override
                     public Set<String> getSupportedAnnotationTypes() {
-                        return Collections3.setOf("com.github.jonathanxd.kores.extra.test.Entry");
+                        return Collections3.setOf("com.koresframework.kores.extra.test.Entry");
                     }
 
                     @Override
@@ -260,8 +253,9 @@ public class AnnotationUnificationlTest {
                         return SourceVersion.RELEASE_8;
                     }
                 })
-                .compilesWithoutError();
+                .compile(TEST);
 
+        Assert.assertTrue(compile.errors().isEmpty());
         Assert.assertTrue(intContainer.get() > 0);
 
 
@@ -292,9 +286,6 @@ public class AnnotationUnificationlTest {
         int flag();
 
         KoresType annotationType();
-    }
-
-    public static class Fail extends FailureStrategy {
     }
 
 }

@@ -25,31 +25,29 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra.test;
+package com.koresframework.kores.extra
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.koresframework.kores.type.KoresType
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.ANNOTATION_TYPE, ElementType.CONSTRUCTOR, ElementType.FIELD,
-        ElementType.LOCAL_VARIABLE, ElementType.METHOD, ElementType.PACKAGE,
-        ElementType.PARAMETER, ElementType.TYPE, ElementType.TYPE_PARAMETER,
-        ElementType.TYPE_USE})
-public @interface Entry {
+/**
+ * Unified annotation base interface.
+ *
+ * **This interface is a trait**.
+ */
+interface UnifiedAnnotation {
 
-    Class<?>[] types();
+    /**
+     * Gets the annotation type of unified annotation.
+     */
+    fun annotationType(): KoresType
 
-    Type[] entryTypes();
+    /**
+     * Gets the annotation data.
+     */
+    fun getUnifiedAnnotationData(): UnifiedAnnotationData
 
-    Name name() default @Name("a");
-
-    Name[] names() default @Name("");
-
-    int[] ids();
-
-    int flag();
-
+    /**
+     * Returns the element that originated this annotation. (may be [Unit])
+     */
+    fun getUnifiedAnnotationOrigin(): Any
 }
-

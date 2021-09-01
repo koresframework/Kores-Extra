@@ -25,13 +25,9 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra;
+package com.koresframework.kores.extra.test;
 
-public class JEnum {
-
-    @SuppressWarnings("unchecked")
-    public static Enum<?> getEntry(Class<?> e, String name) {
-        return (Enum<?>) Enum.valueOf((Class<? extends Enum>) e, name);
-    }
-
+public enum Type {
+    REGISTER,
+    LOG
 }

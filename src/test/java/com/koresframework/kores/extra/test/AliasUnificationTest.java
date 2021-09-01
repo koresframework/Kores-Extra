@@ -25,15 +25,15 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra.test;
+package com.koresframework.kores.extra.test;
 
 import com.github.jonathanxd.iutils.object.Default;
 import com.github.jonathanxd.iutils.opt.OptObject;
-import com.github.jonathanxd.kores.extra.Alias;
-import com.github.jonathanxd.kores.extra.AnnotationsKt;
-import com.github.jonathanxd.kores.extra.Opt;
-import com.github.jonathanxd.kores.type.ImplicitKoresType;
+import com.koresframework.kores.extra.Alias;
+import com.koresframework.kores.extra.Opt;
+import com.koresframework.kores.type.ImplicitKoresType;
 
+import com.koresframework.kores.extra.AnnotationsKt;
 import org.junit.Assert;
 import org.junit.Test;
 

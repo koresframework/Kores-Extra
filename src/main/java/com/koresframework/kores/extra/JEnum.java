@@ -25,34 +25,13 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.kores.extra
+package com.koresframework.kores.extra;
 
-/**
- * Defines the alias of the method. This alias is the name of the method in the annotations to unify. This allows
- * more conventional names for interface methods rather than naming conventions used in annotations, so instead
- * of naming a method in this way: `age`, you can name it as `getAge` and add [Alias] annotation with `age` value.
- *
- * Example:
- *
- * Annotation:
- * ```
- * annotation class Person(val name: String, val age: Int)
- * ```
- *
- * Unification interface:
- *
- * ```
- * interface UnifiedPerson {
- *     @Alias("name")
- *     fun getName(): String
- *     @Alias("age")
- *     fun getAge(): Int
- * }
- * ```
- *
- * We can also use Kotlin properties, but alias still required because Kotlin properties are compiled to getters methods
- * (and setters if property is mutable, but this is irrelevant for unification).
- */
-@Retention(AnnotationRetention.RUNTIME)
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER)
-annotation class Alias(val value: String)
+public class JEnum {
+
+    @SuppressWarnings("unchecked")
+    public static Enum<?> getEntry(Class<?> e, String name) {
+        return (Enum<?>) Enum.valueOf((Class<? extends Enum>) e, name);
+    }
+
+}

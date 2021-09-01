@@ -1,6 +1,6 @@
 buildscript {
-    ext.kotlin_version = '1.4.32'
-    ext.dokka_version = '1.4.30'
+    ext.kotlin_version = '1.5.30'
+    ext.dokka_version = '1.5.0'
 
     repositories {
         maven { url 'https://dl.bintray.com/kotlin/dokka' }
@@ -19,7 +19,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '1.4.4-SNAPSHOT'
+version '1.5.0-SNAPSHOT'
 
 // IDE
 apply plugin: 'idea'
@@ -36,21 +36,28 @@ apply plugin: 'license'
 // Shade
 apply plugin: 'com.github.johnrengelman.shadow'
 
-sourceCompatibility = 1.8
+// Publish
+apply plugin: 'maven-publish'
 
 repositories {
     jcenter()
     mavenCentral()
     maven { url 'https://dl.bintray.com/kotlin/dokka' }
-    maven { url "https://jitpack.io" }
+    // JwIUtils
+    maven {
+        url "https://gitlab.com/api/v4/projects/28895078/packages/maven"
+    }
+    maven {
+        url 'https://gitlab.com/api/v4/projects/28894889/packages/maven'
+    }
 }
 
 compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "16"
 }
 
 compileTestKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "16"
 }
 
 dependencies {
@@ -60,11 +67,12 @@ dependencies {
     implementation "com.googlecode.json-simple:json-simple:1.1.1"
 
     // Utilities
-    implementation 'com.github.koresframework:Kores:4.0.1.base'
+    implementation("com.koresframework:kores:4.2.4.base")
 
-    implementation 'com.github.JonathanxD:JwIUtils:4.17.2'
+    implementation "com.github.jonathanxd:jwiutils:4.17.8"
+    implementation "com.github.jonathanxd:jwiutils-kt:4.17.8"
 
-    testImplementation "com.google.testing.compile:compile-testing:0.8"
+    testImplementation "com.google.testing.compile:compile-testing:0.19"
     testImplementation "junit:junit:4.12"
     testImplementation files("${System.properties['java.home']}/../libs/tools.jar")
 }
@@ -128,5 +136,40 @@ license {
     mapping {
         java = 'SLASHSTAR_STYLE'
         kt = 'SLASHSTAR_STYLE'
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "Local"
+            // change to point to your repo, e.g. http://my.org/repo
+            url = "$buildDir/repo"
+        }
+        maven {
+            name = "GitLab"
+            url "https://gitlab.com/api/v4/projects/29289915/packages/maven"
+            credentials(HttpHeaderCredentials) {
+                def ciToken = System.getenv("CI_JOB_TOKEN")
+                if (ciToken != null && !ciToken.isEmpty()) {
+                    name = "Job-Token"
+                    value = System.getenv("CI_JOB_TOKEN")
+                } else {
+                    name = "Private-Token"
+                    value = project.findProperty("GITLAB_TOKEN") ?: System.getenv("GITLAB_TOKEN")
+                }
+            }
+            authentication {
+                header(HttpHeaderAuthentication)
+            }
+        }
+    }
+    publications {
+        maven(MavenPublication) {
+            from components.kotlin
+            artifactId 'kores-extra'
+
+            artifact sourcesJar
+        }
     }
 }
