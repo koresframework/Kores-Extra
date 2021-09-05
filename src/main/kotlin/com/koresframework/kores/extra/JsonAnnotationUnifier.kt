@@ -27,29 +27,39 @@
  */
 package com.koresframework.kores.extra
 
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.*
 import com.koresframework.kores.base.Annotation
 import com.koresframework.kores.base.EnumValue
 import com.koresframework.kores.util.*
 import com.github.jonathanxd.iutils.kt.rightOrFail
 import com.koresframework.kores.base.Retention
 import com.koresframework.kores.type.*
-import org.json.simple.JSONArray
-import org.json.simple.JSONObject
-import org.json.simple.parser.JSONParser
 import java.lang.reflect.Type
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.util.Elements
 
 typealias TypeResolverFunc = (annotationType: Type, name: String) -> UnificationStrategy?
 
+private val GLOBAL_OM = ObjectMapper()
+
 @Suppress("UNCHECKED_CAST")
 fun <T : Any> unifyJson(jsonString: String,
                         baseAnnotationType: Type,
                         unificationInterface: Class<T>,
                         typeResolver: TypeResolverFunc
-): T {
+): T = unifyJson(jsonString, baseAnnotationType, unificationInterface, typeResolver, GLOBAL_OM)
 
-    val json = JSONParser().parse(jsonString) as JSONObject
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> unifyJson(jsonString: String,
+                        baseAnnotationType: Type,
+                        unificationInterface: Class<T>,
+                        typeResolver: TypeResolverFunc,
+                        om: ObjectMapper
+): T {
+    val json = om.readTree(jsonString) as ObjectNode
 
     return unifyJsonObj(
         json,
@@ -60,7 +70,7 @@ fun <T : Any> unifyJson(jsonString: String,
 }
 
 @Suppress("UNCHECKED_CAST")
-fun <T : Any> unifyJsonObj(jsonObject: JSONObject,
+fun <T : Any> unifyJsonObj(jsonObject: ObjectNode,
                            baseAnnotationType: Type,
                            unificationInterface: Class<T>,
                            typeResolver: TypeResolverFunc
@@ -78,12 +88,12 @@ fun <T : Any> unifyJsonObj(jsonObject: JSONObject,
     )
 }
 
-private fun JSONObject.fromJsonObjAnn(type: Type, typeResolver: TypeResolverFunc): Annotation {
+private fun ObjectNode.fromJsonObjAnn(type: Type, typeResolver: TypeResolverFunc): Annotation {
     val map = mutableMapOf<String, Any>()
 
-    this.forEach {
+    this.fields().forEach {
         val key = it.key as String
-        val value = it.value as Any
+        val value = it.value as JsonNode
 
         map[key] = fromJsonVal(type, key, value, typeResolver)
     }
@@ -95,7 +105,7 @@ private fun JSONObject.fromJsonObjAnn(type: Type, typeResolver: TypeResolverFunc
             .build()
 }
 
-private fun fromJsonObj(annotationType: Type, name: String, json: JSONObject, typeResolver: TypeResolverFunc): Any {
+private fun fromJsonObj(annotationType: Type, name: String, json: ObjectNode, typeResolver: TypeResolverFunc): Any {
     val resolved = typeResolver(annotationType, name)
 
     return when (resolved) {
@@ -111,47 +121,47 @@ private fun fromJsonObj(annotationType: Type, name: String, json: JSONObject, ty
 
 }
 
-private fun fromResolved(annotationType: Type, strategy: UnificationStrategy, value: Any, typeResolver: TypeResolverFunc): Any =
+private fun fromResolved(annotationType: Type, strategy: UnificationStrategy, value: JsonNode, typeResolver: TypeResolverFunc): Any =
         when (strategy) {
-            is EnumConstant -> EnumValue(strategy.type, value as String)
-            is AnnotationConstant -> (value as JSONObject).fromJsonObjAnn(strategy.type, typeResolver)
+            is EnumConstant -> EnumValue(strategy.type, value.textValue())
+            is AnnotationConstant -> (value as ObjectNode).fromJsonObjAnn(strategy.type, typeResolver)
             is UnifyAnnotation -> unifyJsonObj(
-                value as JSONObject,
+                value as ObjectNode,
                 strategy.annotationType,
                 strategy.unificationType,
                 typeResolver
             )
-            is LiteralValue -> value.toConstValue(strategy.type)
-            is Apply -> strategy(value)
+            is LiteralValue -> value.toJavaConstant().toConstValue(strategy.type)
+            is Apply -> strategy(value.toJavaConstant())
         }
 
-private fun fromJsonVal(annotationType: Type, key: String, value: Any, typeResolver: TypeResolverFunc): Any {
+private fun fromJsonVal(annotationType: Type, key: String, value: JsonNode, typeResolver: TypeResolverFunc): Any {
 
     val resolved = typeResolver(annotationType, key)
 
     return when (value) {
-        is String, is Double, is Float, is Number,
-        is Boolean -> if (resolved != null) fromResolved(
+        is TextNode, is NumericNode, is FloatNode, is Number,
+        is BooleanNode -> if (resolved != null) fromResolved(
             annotationType,
             resolved,
             value,
             typeResolver
-        ) else value
-        is JSONArray -> value.map {
+        ) else value.toJavaConstant()
+        is ArrayNode -> value.map {
             if (resolved != null) fromResolved(
                 annotationType,
                 resolved,
-                it as Any,
+                it,
                 typeResolver
             )
             else fromJsonVal(
                 annotationType,
                 key,
-                it as Any,
+                it,
                 typeResolver
             )
         }
-        is JSONObject -> {
+        is ObjectNode -> {
             if (resolved != null) fromResolved(
                 annotationType,
                 resolved,
@@ -174,6 +184,19 @@ private fun fromJsonVal(annotationType: Type, key: String, value: Any, typeResol
     }
 
 }
+
+fun JsonNode.toJavaConstant(): Any =
+    when (this) {
+        is TextNode -> this.textValue()
+        is DoubleNode -> this.doubleValue()
+        is FloatNode -> this.floatValue()
+        is ShortNode -> this.shortValue()
+        is IntNode -> this.intValue()
+        is LongNode -> this.longValue()
+        is DecimalNode -> this.doubleValue()
+        is BigIntegerNode -> this.bigIntegerValue()
+        else -> throw IllegalArgumentException("Unknown node kind: ${this::class.java.simpleName}. Value: $this")
+    }
 
 private fun Any.toConstValue(type: LiteralType): Any {
     return type.converter(this)

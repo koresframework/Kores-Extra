@@ -19,7 +19,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '1.5.1'
+version '1.6.0'
 
 // IDE
 apply plugin: 'idea'
@@ -40,7 +40,6 @@ apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'maven-publish'
 
 repositories {
-    jcenter()
     mavenCentral()
     maven { url 'https://dl.bintray.com/kotlin/dokka' }
     // JwIUtils
@@ -64,10 +63,11 @@ dependencies {
     // Kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
-    implementation "com.googlecode.json-simple:json-simple:1.1.1"
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0-rc2'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0-rc2'
 
     // Utilities
-    implementation("com.koresframework:kores:4.2.4.base")
+    api "com.koresframework:kores:4.2.8.base"
 
     implementation "com.github.jonathanxd:jwiutils:4.17.8"
     implementation "com.github.jonathanxd:jwiutils-kt:4.17.8"
