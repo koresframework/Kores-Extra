@@ -19,7 +19,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '1.6.1'
+version '1.6.2'
 
 // IDE
 apply plugin: 'idea'
@@ -42,12 +42,9 @@ apply plugin: 'maven-publish'
 repositories {
     mavenCentral()
     maven { url 'https://dl.bintray.com/kotlin/dokka' }
-    // JwIUtils
     maven {
-        url "https://gitlab.com/api/v4/projects/28895078/packages/maven"
-    }
-    maven {
-        url 'https://gitlab.com/api/v4/projects/28894889/packages/maven'
+        name = "JGang"
+        url "https://gitlab.com/api/v4/projects/30392813/packages/maven"
     }
 }
 
@@ -67,10 +64,10 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0-rc2'
 
     // Utilities
-    api "com.koresframework:kores:4.2.8.base"
+    api "com.koresframework:kores:4.2.16.base"
 
-    implementation "com.github.jonathanxd:jwiutils:4.17.8"
-    implementation "com.github.jonathanxd:jwiutils-kt:4.17.8"
+    implementation "com.github.jonathanxd:jwiutils:4.18.3"
+    implementation "com.github.jonathanxd:jwiutils-kt:4.18.3"
 
     testImplementation "com.google.testing.compile:compile-testing:0.19"
     testImplementation "junit:junit:4.12"
